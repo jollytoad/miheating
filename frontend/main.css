@@ -1,0 +1,24 @@
+body {
+  padding-top: 70px;
+  padding-bottom: 30px;
+}
+
+.table .fill {
+  width: 100%;
+}
+
+.table ul {
+  list-style: none;
+  padding: 0;
+}
+.table li {
+  white-space: nowrap;
+}
+
+.chart {
+  font-size: 10px;
+}
+
+.chart > div {
+  background-color: white;
+}

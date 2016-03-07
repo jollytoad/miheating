@@ -1,0 +1,45 @@
+{
+  "name": "MiHeating",
+  "version": "1.0.0",
+  "description": "Mi|Home eTRV monitoring",
+  "main": "app.js",
+  "scripts": {
+    "start": "babel-node app.js"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.6.5",
+    "babel-preset-es2015": "^6.6.0",
+    "browser-sync": "^2.11.1",
+    "jspm": "^0.16.27",
+    "proxy-middleware": "^0.15.0",
+    "url": "^0.11.0"
+  },
+  "jspm": {
+    "dependencies": {
+      "css": "github:systemjs/plugin-css@^0.1.20",
+      "fluxlet": "github:fluxlet/fluxlet@master",
+      "fluxlet-immutable": "github:fluxlet/fluxlet-immutable@master",
+      "jquery": "github:components/jquery@^2.2.0",
+      "object.entries": "npm:object.entries@^1.0.3",
+      "object.values": "npm:object.values@^1.0.3",
+      "tcomb": "npm:tcomb@^2.7.0",
+      "virtual-dom": "npm:virtual-dom@^2.1.1",
+      "vis": "npm:vis@^4.14.0"
+    },
+    "devDependencies": {
+      "babel": "npm:babel-core@^5.8.24",
+      "babel-runtime": "npm:babel-runtime@^5.8.24",
+      "core-js": "npm:core-js@^1.1.4"
+    }
+  },
+  "author": "Mark Gibson",
+  "license": "GPL-3.0",
+  "dependencies": {
+    "fluxlet": "0.0.2",
+    "fluxlet-immutable": "0.0.2",
+    "node-fetch": "^1.3.3",
+    "object.entries": "^1.0.3",
+    "object.values": "^1.0.3",
+    "tcomb": "^2.7.0"
+  }
+}
