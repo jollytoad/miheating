@@ -1,1 +1,4 @@
-{ "presets": ["es2015"] }
+{
+    "presets": [ "node5" ],
+    "plugins": [ "syntax-jsx", "transform-react-jsx" ]
+}

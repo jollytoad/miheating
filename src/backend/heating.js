@@ -1,14 +1,16 @@
 "use strict"
 import fluxlet from "fluxlet/lib/development"
 import { update, chain } from "fluxlet-immutable"
+import { allOf } from './predicates'
 
 import { mihomeTrvs } from './things'
 import callBoiler from './boiler'
+import record from './recorder'
 
 import values from 'object.values'
 if (!Object.values) values.shim()
 
-export const trvIds = Object.values(mihomeTrvs)
+const trvIds = Object.values(mihomeTrvs)
 
 const initTrv = () => ({
   target: null,
@@ -43,7 +45,8 @@ export function setup(...plugins) {
     .sideEffects(
       mapOf(trvIds, setTrvTarget, id => `setTrvTarget_${id}`),
     {
-        callBoiler
+      callBoiler,
+      record
     })
     .init(dispatchers => {
       plugins.forEach(plugin => plugin.setup(dispatchers))
@@ -88,13 +91,6 @@ const trvTargetUpdateDue = (id) => (state, prev) =>
   state.trvs[id].target !== state.trvs[id].setTarget
 
 const trvsChanged = (state, prev) => state.trvs !== prev.trvs
-
-// ### Predicate combinators
-// (?) -> (state, prev) -> boolean
-
-const anyOf = (...predicates) => (...args) => predicates.some(when => when(...args))
-const allOf = (...predicates) => (...args) => predicates.every(when => when(...args))
-const not = (predicate) => (...args) => !predicate(...args)
 
 // ## Calculations
 

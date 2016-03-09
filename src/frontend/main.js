@@ -6,7 +6,7 @@ import diff from 'virtual-dom/diff'
 import patch from 'virtual-dom/patch'
 import { root, initRoot } from './templates'
 import { render, whenNotRendering } from './render-utils'
-import { map, mapIf, mapFrom } from './../lib/map2'
+import { map, mapIf, mapFrom } from '../util/map2'
 import { bindReady } from './bindings'
 import vis from "vis"
 import "vis/dist/vis.css!"
