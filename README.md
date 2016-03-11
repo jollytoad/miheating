@@ -1,6 +1,7 @@
 # Mi Heating
 
-Charts of Mi|Home eTRV reports
+Experimental system to fire boiler when Mi|Home eTRVs demand heat,
+and a visualisation of room temperatures over the past 24hrs.
 
     Copyright (C) 2016  Mark Gibson
 
@@ -25,6 +26,17 @@ eg:
 
     module.exports = "Basic xxxx"
 
+### Production
+
+This is suitable for a Raspberry PI etc:
+
+    $ npm install --production
+    $ npm start
+
+Open http://localhost:3030
+
+### Development
+
 Then install and start:
 
     $ npm install
@@ -32,4 +44,4 @@ Then install and start:
     $ npm run build
     $ npm start
 
-Open http://localhost:3030
+Open http://localhost:3030/dev.html

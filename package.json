@@ -5,6 +5,7 @@
   "main": "app.js",
   "scripts": {
     "build": "babel src -d lib",
+    "bundle": "jspm bundle-sfx src/frontend/start.js lib/frontend.js",
     "start": "node lib/app.js"
   },
   "devDependencies": {
@@ -12,7 +13,8 @@
     "babel-plugin-syntax-jsx": "^6.5.0",
     "babel-plugin-transform-react-jsx": "^6.6.5",
     "babel-preset-node5": "^10.8.0",
-    "jspm": "^0.16.27"
+    "jspm": "^0.16.27",
+    "uglify-js": "^2.6.2"
   },
   "jspm": {
     "dependencies": {
@@ -28,6 +30,7 @@
     "devDependencies": {
       "babel": "npm:babel-core@^5.8.24",
       "babel-runtime": "npm:babel-runtime@^5.8.24",
+      "clean-css": "npm:clean-css@^3.4.10",
       "core-js": "npm:core-js@^1.1.4"
     }
   },
