@@ -44,12 +44,17 @@ export default {
     const record = { t: now }
 
     trvIds.forEach(id => {
-      if (state.trvs[id] !== prev.trvs[id]) {
-        record[id] = state.trvs[id]
+      if (!history.length ||
+          state.trvs[id].target !== prev.trvs[id].target ||
+          state.trvs[id].current !== prev.trvs[id].current) {
+        record[id] = {
+          target: state.trvs[id].target,
+          current: state.trvs[id].current
+        }
       }
     })
 
-    if (state.boiler !== prev.boiler) {
+    if (!history.length || state.boiler !== prev.boiler) {
       record.boiler = state.boiler
     }
 
