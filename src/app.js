@@ -9,7 +9,7 @@ import { get } from 'fluxlet-immutable/lib/get'
 
 const proxyOptions = url.parse('https://mihome4u.co.uk/api')
 proxyOptions.headers = {
-    authorization: require('./auth')
+    authorization: require('../auth')
 }
 
 const app = express()
