@@ -3,3 +3,4 @@ jspm_packages
 node_modules
 .idea
 *.iml
+lib/frontend

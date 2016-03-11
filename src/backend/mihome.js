@@ -2,6 +2,7 @@
 import fluxlet from "fluxlet/lib/development"
 import { update, chain } from "fluxlet-immutable"
 import fetch from "node-fetch"
+import { inquirer } from './inquiry'
 
 import { mihomeTrvs } from './things'
 
@@ -19,16 +20,17 @@ export function setup(dispatchers) {
   relay = dispatchers
 
   fluxlet('mihome')
-      .state(initialState)
-      .actions({
-        loaded
-      })
-      .calculations({
-      })
-      .sideEffects({
-        dispatchTrvReadings
-      })
-      .init(fetchTrvReadings(60000))
+    .hooks(inquirer)
+    .state(initialState)
+    .actions({
+      loaded
+    })
+    .calculations({
+    })
+    .sideEffects({
+      dispatchTrvReadings
+    })
+    .init(fetchTrvReadings(60000))
 }
 
 // # Initial State
@@ -99,4 +101,3 @@ const fetchData = (dispatch, target, api, params) =>
         .then(response => response.json())
         .then(content => dispatch.loaded(target, content.data, Date.now()))
         .catch((...args) => console.error("Fetching TRV data failed", ...args))
-

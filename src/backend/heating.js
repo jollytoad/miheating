@@ -2,10 +2,11 @@
 import fluxlet from "fluxlet/lib/development"
 import { update, chain } from "fluxlet-immutable"
 import { allOf } from './predicates'
-
-import { mihomeTrvs } from './things'
 import callBoiler from './boiler'
 import record from './recorder'
+import { inquirer } from './inquiry'
+
+import { mihomeTrvs } from './things'
 
 import values from 'object.values'
 if (!Object.values) values.shim()
@@ -30,6 +31,7 @@ const mapOf = (keys, valFn, keyFn) => keys.reduce((obj, key) => {
 export function setup(...plugins) {
 
   fluxlet('heating')
+    .hooks(inquirer)
     .state(initialState)
     .actions({
       trvReading,

@@ -22,6 +22,8 @@ let history = []
 const trvsChanged = (state, prev) => state.trvs !== prev.trvs
 const boilerChanged = (state, prev) => state.boiler !== prev.boiler
 
+// ## Side Effects
+
 export default {
   when: anyOf(boilerChanged, trvsChanged),
   then: (state, prev) => {
