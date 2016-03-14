@@ -8,6 +8,9 @@ import { root, initRoot } from './templates'
 import { render, whenNotRendering } from './render-utils'
 import { map, mapIf, mapFrom } from '../util/map2'
 import { bindReady } from './bindings'
+import { mihomeTrvs } from '../util/things'
+import { periodDuration, topOfPeriod } from '../util/history'
+import { anyOf, allOf, not } from '../util/predicates'
 import vis from "vis"
 import "vis/dist/vis.css!"
 
@@ -32,7 +35,8 @@ export function setup() {
     .sideEffects({
       loadSubDevices,
       loadTimers,
-      loadTemperatureReports
+      loadTemperatureReports,
+      loadHistory
     }, {
       patchDOM
     }, {
@@ -49,13 +53,15 @@ export function setup() {
 const initialState = {
   begin: false,
   req: {
+    source: null,
     start: null,
     end: null
   },
   raw: {
     subdevices: [],
     timers: {},
-    temperatures: {}
+    temperatures: {},
+    history: {}
   },
   //model: {
   //},
@@ -72,9 +78,13 @@ const initialState = {
 
 // ## Actions
 
-const begin = () => chain(
+const begin = (params) => chain(
     update("begin", true),
-    update("req", { start: Date.now()-24*60*60*1000, end: Date.now() })
+    update("req", {
+      source: params.source || 'history',
+      start: Date.now()-24*60*60*1000,
+      end: Date.now()
+    })
 )
 
 const setRaw = (property, data) => update(["raw"].concat(property), data)
@@ -85,9 +95,11 @@ const rangeChange = (id, start, end) => update("view.range", {id, start, end})
 // For use in _when_ clauses of calculations and side-effects
 // (state, prev) -> boolean
 
+const reqChanged = (state, prev) => state.req !== prev.req
 const subDevicesChanged = (state, prev) => state.raw.subdevices !== prev.raw.subdevices
 const timersChanged = (state, prev) => state.raw.timers !== prev.raw.timers
 const temperaturesChanged = (state, prev) => state.raw.temperatures !== prev.raw.temperatures
+const historyChanged = (state, prev) => state.raw.history !== prev.raw.history
 const rangeChanged = (state, prev) => state.view.range !== prev.view.range
 //const graphDataChanged = (state, prev) => state.trans.graphData !== prev.trans.graphData
 //const modelChanged = (state, prev) => state.model !== prev.model
@@ -95,12 +107,7 @@ const rangeChanged = (state, prev) => state.view.range !== prev.view.range
 const vdomChanged = (state, prev) => state.view.vdom !== prev.view.vdom
 const diffReady = (state, prev) => state.view.diff !== null && state.view.diff !== prev.view.diff
 
-// ### Predicate combinators
-// (?) -> (state, prev) -> boolean
-
-const anyOf = (...predicates) => (...args) => predicates.some(when => when(...args))
-const allOf = (...predicates) => (...args) => predicates.every(when => when(...args))
-const not = (predicate) => (...args) => !predicate(...args)
+const sourceIs = source => state => state.req.source === source
 
 // ## Calculations
 
@@ -145,7 +152,7 @@ const loadTimers = {
 
 
 const loadTemperatureReports = {
-  when: subDevicesChanged,
+  when: allOf(subDevicesChanged, sourceIs('mihome')),
   then: (state, p, dispatch) => {
     state.raw.subdevices.forEach(({id, device_type}) => {
       if (device_type === "etrv") {
@@ -163,6 +170,19 @@ const loadTemperatureReports = {
   }
 }
 
+const loadHistory = {
+  when: reqChanged,
+  then: (state, p, dispatch) => {
+    let t = topOfPeriod(state.req.start)
+    while (t < state.req.end) {
+      if (!state.raw.history[t]) {
+        fetchHistory(dispatch, t)
+      }
+      t += periodDuration
+    }
+  }
+}
+
 // ## Rendering Side Effects
 
 const patchDOM = {
@@ -176,17 +196,35 @@ const createTimerSeries = (timerData, range) =>
     timerData
         .map(({action, last_run_at, value}) =>
             action === "set_target_temperature" && last_run_at && Date.parse(last_run_at) >= range.start && value
-              ? { x: last_run_at, y: +value, group: 1 }
+              ? { x: last_run_at, y: +value, group: 2 }
               : null)
         .filter(x => x !== null)
 
-const renderGraph = (id, temperatureData, timerData, range, dispatch) => {
-  const temperatureSeries = temperatureData.map(([x,y]) => ({ x, y, group: 0 }))
-  const timerSeries = createTimerSeries(timerData, range)
+const createHistorySeries = (name, history, range) =>
+  [].concat(...Object.values(history))
+      .map(r => r[name] ? { x: r.t, y: r[name].current, group: 1 } : null)
+      .filter(x => x !== null)
+
+const createBoilerSeries = (history, range) =>
+  [].concat(...Object.values(history))
+      .map(r => r.boiler ? { x: r.t, y: r.boiler.flame ? 26 : 10, group: 0 } : null)
+      .filter(x => x !== null)
+
+const renderGraph = (id, temperatureData, timerData, history, range, dispatch) => {
+  let temperatureSeries
+
+  if (range.source === 'mihome') {
+    temperatureSeries = temperatureData && temperatureData.map(([x,y]) => ({ x, y, group: 1 }))
+  } else {
+    temperatureSeries = history && mihomeTrvs[id] && createHistorySeries(mihomeTrvs[id], history, range)
+  }
+  const timerSeries = timerData && createTimerSeries(timerData, range)
+  const boilerSeries = history && createBoilerSeries(history, range)
 
   const dataset = new vis.DataSet()
-  dataset.add(temperatureSeries)
-  dataset.add(timerSeries)
+  temperatureSeries && dataset.add(temperatureSeries)
+  timerSeries && dataset.add(timerSeries)
+  boilerSeries && dataset.add(boilerSeries)
 
   const container = document.getElementById(`chart-${id}`)
 
@@ -203,12 +241,21 @@ const renderGraph = (id, temperatureData, timerData, range, dispatch) => {
       id: 0,
       options: {
         drawPoints: false,
-        shaded: true
+        shaded: true,
+        interpolation: false
       }
     })
 
     groups.add({
       id: 1,
+      options: {
+        drawPoints: false,
+        shaded: true
+      }
+    })
+
+    groups.add({
+      id: 2,
       options: {
         sort: false,
         sampling: false,
@@ -239,12 +286,10 @@ const renderGraph = (id, temperatureData, timerData, range, dispatch) => {
 }
 
 const renderGraphs = {
-  when: anyOf(temperaturesChanged, timersChanged),
+  when: anyOf(temperaturesChanged, timersChanged, historyChanged),
   then: render((state, prev, dispatch) => {
-    Object.keys(state.raw.temperatures).forEach(id => {
-      if (state.raw.temperatures[id] !== prev.raw.temperatures[id] || state.raw.timers[id] !== prev.raw.timers[id]) {
-        renderGraph(id, state.raw.temperatures[id], state.raw.timers[id], state.req, dispatch)
-      }
+    Object.keys(mihomeTrvs).forEach(id => {
+      renderGraph(id, state.raw.temperatures[id], state.raw.timers[id], state.raw.history, state.req, dispatch)
     })
   })
 }
@@ -271,3 +316,7 @@ const fetchData = (dispatch, target, api, params) =>
         .then(response => response.json())
         .then(content => dispatch.setRaw(target, content.data))
 
+const fetchHistory = (dispatch, start) =>
+        fetch(`history/${start}.json`)
+            .then(response => response.json())
+            .then(data => dispatch.setRaw(['history',start], data))

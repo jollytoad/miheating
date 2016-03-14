@@ -1,12 +1,12 @@
 "use strict"
 import fluxlet from "fluxlet/lib/development"
 import { update, chain } from "fluxlet-immutable"
-import { allOf } from './predicates'
+import { allOf } from '../util/predicates'
 import callBoiler from './boiler'
 import record from './recorder'
 import { inquirer } from './inquiry'
 
-import { mihomeTrvs } from './things'
+import { mihomeTrvs } from '../util/things'
 
 import values from 'object.values'
 if (!Object.values) values.shim()

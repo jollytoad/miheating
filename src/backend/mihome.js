@@ -4,7 +4,7 @@ import { update, chain } from "fluxlet-immutable"
 import fetch from "node-fetch"
 import { inquirer } from './inquiry'
 
-import { mihomeTrvs } from './things'
+import { mihomeTrvs } from '../util/things'
 
 import entries from 'object.entries'
 if (!Object.entries) entries.shim()

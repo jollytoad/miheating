@@ -5,6 +5,10 @@ import $ from "jquery"
 
 export function bindReady({ begin }) {
   $(() => {
-    begin()
+    begin({ source: getSource(window.location.search) })
   })
+}
+
+function getSource(url) {
+  return (/source=(\w+)/.exec(url) || [])[1]
 }

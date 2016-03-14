@@ -1,14 +1,12 @@
 import fs from 'fs'
-import { mihomeTrvs } from './things'
+import { mihomeTrvs } from '../util/things'
 import { anyOf } from './predicates'
+import { periodDuration, folder, topOfPeriod } from '../util/history'
 
 import values from 'object.values'
 if (!Object.values) values.shim()
 
 // ## Configuration
-
-const periodDuration = 1000*60*60
-const folder = 'history'
 
 const trvIds = Object.values(mihomeTrvs)
 
@@ -16,6 +14,10 @@ const trvIds = Object.values(mihomeTrvs)
 
 let period = topOfPeriod(Date.now())
 let history = []
+
+export function getCurrentHistory() {
+  return history
+}
 
 // ## Predicates
 
@@ -60,10 +62,4 @@ export default {
 
     history.push(record)
   }
-}
-
-// ## Utils
-
-function topOfPeriod(now) {
-  return Math.floor(now / periodDuration) * periodDuration
 }

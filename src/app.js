@@ -6,6 +6,8 @@ import proxy from 'proxy-middleware'
 import { setup } from './backend/main'
 import { inquiry } from './backend/inquiry'
 import { get } from 'fluxlet-immutable/lib/get'
+import { topOfPeriod } from './util/history'
+import { getCurrentHistory } from './backend/recorder'
 
 const proxyOptions = url.parse('https://mihome4u.co.uk/api')
 proxyOptions.headers = {
@@ -24,6 +26,14 @@ app.use('/api', proxy(proxyOptions))
 
 app.use(express.static('.'))
 
+app.use(/^\/history\/(\d+)\.json$/, (req, res, next) => {
+  if (+req.params[0] === topOfPeriod(Date.now())) {
+    res.json(getCurrentHistory())
+  } else {
+    res.json([])
+  }
+})
+
 app.listen(3030, () => {
-    setup()
+  setup()
 })
