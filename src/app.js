@@ -29,8 +29,6 @@ app.get('/history/save', (req, res) => {
 
 app.use('/api', proxy(proxyOptions))
 
-app.use(express.static('.'))
-
 app.use(/^\/history\/(\d+)\.json$/, (req, res, next) => {
   if (+req.params[0] === topOfPeriod(Date.now())) {
     res.json(getCurrentHistory())
@@ -38,6 +36,8 @@ app.use(/^\/history\/(\d+)\.json$/, (req, res, next) => {
     res.json([])
   }
 })
+
+app.use(express.static('.'))
 
 app.listen(3030, () => {
   setup()
