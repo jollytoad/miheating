@@ -42,3 +42,12 @@ app.use(/^\/history\/(\d+)\.json$/, (req, res, next) => {
 app.listen(3030, () => {
   setup()
 })
+
+function shutdown() {
+  save()
+  console.log("Bye")
+  process.exit()
+}
+
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)
