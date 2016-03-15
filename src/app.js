@@ -22,31 +22,31 @@ app.get(/^\/state\/(.*)$/, (req, res) => {
   res.json(data)
 })
 
-app.get('/history/save', (req, res) => {
-  save()
-  res.json(true)
-})
-
 app.use('/api', proxy(proxyOptions))
 
 app.use(/^\/history\/(\d+)\.json$/, (req, res, next) => {
   if (+req.params[0] === topOfPeriod(Date.now())) {
-    res.json(getCurrentHistory())
+    save(next)
   } else {
-    res.json([])
+    next()
   }
 })
 
 app.use(express.static('.'))
+
+app.use(/^\/history\/(\d+)\.json$/, (req, res, next) => {
+  res.json([])
+})
 
 app.listen(3030, () => {
   setup()
 })
 
 function shutdown() {
-  save()
-  console.log("Bye")
-  process.exit()
+  save(() => {
+    console.log("Bye")
+    process.exit()
+  })
 }
 
 process.on('SIGTERM', shutdown)

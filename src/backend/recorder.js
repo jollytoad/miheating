@@ -62,11 +62,12 @@ export default {
   }
 }
 
-export function save() {
+export function save(callback) {
   console.log("Saving history: ", period)
 
   fs.writeFile(`${folder}/${period}.json`, JSON.stringify(history), err => {
     console.log(err ? err : 'saved')
+    callback && callback()
   })
 }
 
