@@ -7,7 +7,7 @@ import { setup } from './backend/main'
 import { inquiry } from './backend/inquiry'
 import { get } from 'fluxlet-immutable/lib/get'
 import { topOfPeriod } from './util/history'
-import { getCurrentHistory } from './backend/recorder'
+import { getCurrentHistory, save } from './backend/recorder'
 
 const proxyOptions = url.parse('https://mihome4u.co.uk/api')
 proxyOptions.headers = {
@@ -20,6 +20,11 @@ app.get(/^\/state\/(.*)$/, (req, res) => {
   const path = req.params[0].split('/').filter(v => !!v)
   const data = get(path)(inquiry)
   res.json(data)
+})
+
+app.get('/history/save', (req, res) => {
+  save()
+  res.json(true)
 })
 
 app.use('/api', proxy(proxyOptions))

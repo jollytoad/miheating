@@ -12,7 +12,7 @@ const trvIds = Object.values(mihomeTrvs)
 
 // ## Internal state
 
-let period = topOfPeriod(Date.now())
+let period = null
 let history = []
 
 export function getCurrentHistory() {
@@ -32,13 +32,11 @@ export default {
     const now = Date.now()
     const top = topOfPeriod(now)
 
-    if (top !== period) {
-      console.log("Saving history: ", period)
-
-      fs.writeFile(`${folder}/${period}.json`, JSON.stringify(history), err => {
-        console.log(err ? err : 'saved')
-      })
-
+    if (period === null) {
+      period = top
+      history = load()
+    } else if (top !== period) {
+      save()
       period = top
       history = []
     }
@@ -61,5 +59,23 @@ export default {
     }
 
     history.push(record)
+  }
+}
+
+export function save() {
+  console.log("Saving history: ", period)
+
+  fs.writeFile(`${folder}/${period}.json`, JSON.stringify(history), err => {
+    console.log(err ? err : 'saved')
+  })
+}
+
+function load() {
+  try {
+    console.log("Attempting to load current history")
+    return JSON.parse(fs.readFileSync(`${folder}/${period}.json`, 'utf-8'))
+  } catch(e) {
+    console.log(e)
+    return []
   }
 }
