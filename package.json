@@ -44,6 +44,7 @@
     "object.entries": "^1.0.3",
     "object.values": "^1.0.3",
     "proxy-middleware": "^0.15.0",
+    "serialport": "^2.0.6",
     "url": "^0.11.0"
   }
 }

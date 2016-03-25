@@ -78,14 +78,19 @@ EthernetServer server(80);
 
 String HTTP_line;
 
-#define heatLED 8
+//#define heatLED 8
+//#define txLED 9
+//#define netLED 7
+
+#define heatLED 13
 #define txLED 9
 #define netLED 7
 
-#define tx 2
+#define tx 4
 #define go 6
-#define HTTP true
-#define DEBUG false
+#define HTTP false
+#define USB true
+#define DEBUG true
 
 const unsigned long debounce = 3000000;
 
@@ -110,7 +115,7 @@ unsigned long lastIncoming = 0;
 #define HEART_BEAT 180000
 
 void setup() {
-  if (DEBUG) {
+  if (DEBUG || USB) {
     Serial.begin(9600);
   }
 
@@ -142,6 +147,10 @@ void setup() {
     }
   }
 
+  if (USB && DEBUG) {
+    Serial.println("started, usb enabled");
+  }
+
   digitalWrite(heatLED, LOW);
   digitalWrite(txLED, LOW);
   digitalWrite(netLED, LOW);
@@ -162,84 +171,12 @@ void loop() {
     if (!digitalRead(go) && micros() >= started+debounce) {
       heat = !heat;
       startTx(true);
-    } else if (HTTP) {
-      EthernetClient client = server.available();
-      if (client) {
-        lastIncoming = millis();
-
-        digitalWrite(netLED, HIGH);
-
-        if (DEBUG) {
-          Serial.println("new client");
-        }
-        
-        // an http request ends with a blank line
-        boolean currentLineIsBlank = true;
-        boolean firstLine = true;
-        boolean newHeat = heat;
-        HTTP_line = "";
-  
-        while (client.connected()) {
-          if (client.available()) {
-            char c = client.read();
-  
-            if (firstLine) {
-              HTTP_line += c;
-            }
-  
-            if (DEBUG) {
-              Serial.write(c);
-            }
-            // if you've gotten to the end of the line (received a newline
-            // character) and the line is blank, the http request has ended,
-            // so you can send a reply
-            if (c == '\n' && currentLineIsBlank) {
-  
-              // send a standard http response header
-              client.println("HTTP/1.1 200 OK");
-              client.println("Content-Type: application/json");
-              client.println("Connection: close");  // the connection will be closed after completion of the response
-              client.println();
-  
-              if (HTTP_line.indexOf("GET /on") == 0) {
-                newHeat = true;
-              } else if (HTTP_line.indexOf("GET /off") == 0) {
-                newHeat = false;
-              } else if (HTTP_line.indexOf("GET /test") == 0) {
-                test_mode = true;
-              } else if (HTTP_line.indexOf("GET /normal") == 0) {
-                test_mode = false;
-              }
-              
-              client.println(newHeat ? "true" : "false");
-  
-              break;
-            }
-            if (c == '\n') {
-              // you're starting a new line
-              currentLineIsBlank = true;
-              firstLine = false;
-            } else if (c != '\r') {
-              // you've gotten a character on the current line
-              currentLineIsBlank = false;
-            }
-          }
-        }
-        // give the web browser time to receive the data
-        delay(1);
-        // close the connection:
-        client.stop();
-        if (DEBUG) {
-          Serial.println("client disconnected");
-        }
-        //Ethernet.maintain();
-  
-        if (newHeat != heat) {
-          heat = newHeat;
-          startTx(true);
-        } else {
-          digitalWrite(netLED, LOW);
-        }
+    } else {
+      if (HTTP) {
+        http();
+      }
+      if (USB) {
+        usb();
       }
     }
     
@@ -247,6 +184,127 @@ void loop() {
       startTx(false);
     }
   }
+}
+
+void http() {
+  EthernetClient client = server.available();
+
+  if (client) {
+    startIncoming();
+
+    // an http request ends with a blank line
+    boolean currentLineIsBlank = true;
+    boolean firstLine = true;
+    boolean newHeat = heat;
+    HTTP_line = "";
+
+    while (client.connected()) {
+      if (client.available()) {
+        char c = client.read();
+
+        if (firstLine) {
+          HTTP_line += c;
+        }
+
+        if (DEBUG) {
+          Serial.write(c);
+        }
+
+        // if you've gotten to the end of the line (received a newline
+        // character) and the line is blank, the http request has ended,
+        // so you can send a reply
+        if (c == '\n' && currentLineIsBlank) {
+
+          // send a standard http response header
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: application/json");
+          client.println("Connection: close");  // the connection will be closed after completion of the response
+          client.println();
+
+          if (HTTP_line.indexOf("GET /on") == 0) {
+            newHeat = true;
+          } else if (HTTP_line.indexOf("GET /off") == 0) {
+            newHeat = false;
+          } else if (HTTP_line.indexOf("GET /test") == 0) {
+            test_mode = true;
+          } else if (HTTP_line.indexOf("GET /normal") == 0) {
+            test_mode = false;
+          }
+          
+          client.println(newHeat ? "true" : "false");
+
+          break;
+        }
+        if (c == '\n') {
+          // you're starting a new line
+          currentLineIsBlank = true;
+          firstLine = false;
+        } else if (c != '\r') {
+          // you've gotten a character on the current line
+          currentLineIsBlank = false;
+        }
+      }
+    }
+
+    // give the web browser time to receive the data
+    delay(1);
+
+    // close the connection:
+    client.stop();
+
+    endIncoming(newHeat);
+  }
+}
+
+void usb() {
+  if (Serial.available() > 0) {
+    startIncoming();
+
+    boolean newHeat = heat;
+
+    while(Serial.available() > 0) {
+      int c = Serial.read();
+
+      if (DEBUG) {
+        Serial.print(c);
+      }
+
+      if (c == '1') {
+        newHeat = true;
+      } else if (c == '0') {
+        newHeat = false;
+      } else if (c == 't') {
+        test_mode = true;
+      } else if (c == 'n') {
+        test_mode = false;
+      }
+    }
+
+    endIncoming(newHeat);
+  }
+}
+
+void startIncoming() {
+  lastIncoming = millis();
+
+  digitalWrite(netLED, HIGH);
+
+  if (DEBUG) {
+    Serial.println("start incoming");
+  }
+}
+
+void endIncoming(boolean newHeat) {
+    if (DEBUG) {
+      Serial.println("end incoming");
+    }
+
+    if (newHeat != heat) {
+      heat = newHeat;
+      startTx(true);
+    } else {
+      digitalWrite(netLED, LOW);
+    }
 }
 
 void startTx(bool reset) {
