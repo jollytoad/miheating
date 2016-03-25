@@ -1,6 +1,6 @@
 import fs from 'fs'
 import { mihomeTrvs } from '../util/things'
-import { anyOf } from './predicates'
+import { anyOf } from '../util/predicates'
 import { periodDuration, folder, topOfPeriod } from '../util/history'
 
 import values from 'object.values'
