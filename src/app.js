@@ -8,6 +8,7 @@ import { inquiry } from './backend/inquiry'
 import { get } from 'fluxlet-immutable/lib/get'
 import { topOfPeriod } from './util/history'
 import { getCurrentHistory, save } from './backend/recorder'
+import { httpPort } from '../settings'
 
 const proxyOptions = url.parse('https://mihome4u.co.uk/api')
 proxyOptions.headers = {
@@ -38,7 +39,7 @@ app.use(/^\/history\/(\d+)\.json$/, (req, res, next) => {
   res.json([])
 })
 
-app.listen(3030, () => {
+app.listen(httpPort, () => {
   setup()
 })
 

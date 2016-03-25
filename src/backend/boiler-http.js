@@ -1,11 +1,10 @@
 import fetch from "node-fetch"
-
-const baseUrl = "http://192.168.1.123"
+import { boilerBaseUrl } from "../../settings.js"
 
 export default function({ boiler: { demand }}, x, { setFlame }) {
   console.log("CALL FOR HEAT: ", demand)
 
-  return fetch(baseUrl + (demand ? '/on' : '/off'), { timeout: 5000 })
+  return fetch(boilerBaseUrl + (demand ? '/on' : '/off'), { timeout: 5000 })
       .then(response => {
         if (response.status >= 200 && response.status < 300) {
           return response

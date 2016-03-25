@@ -5,11 +5,12 @@ import fetch from "node-fetch"
 import { inquirer } from './inquiry'
 
 import { mihomeTrvs } from '../util/things'
+import { httpPort, trvPolling } from '../../settings'
 
 import entries from 'object.entries'
 if (!Object.entries) entries.shim()
 
-const baseUrl = "http://localhost:3030"
+const baseUrl = "http://localhost:" + httpPort
 
 let relay
 
@@ -30,7 +31,7 @@ export function setup(dispatchers) {
     .sideEffects({
       dispatchTrvReadings
     })
-    .init(fetchTrvReadings(60000))
+    .init(fetchTrvReadings(trvPolling))
 }
 
 // # Initial State

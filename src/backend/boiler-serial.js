@@ -1,10 +1,11 @@
 import { SerialPort, parsers } from "serialport"
+import { boilerSerialDev } from "../../settings.js"
 
 let serialPort = null
 
 function openPort(callback) {
   if (serialPort == null || !serialPort.isOpen()) {
-    serialPort = new SerialPort("/dev/tty.wchusbserial1420", {
+    serialPort = new SerialPort(boilerSerialDev, {
       baudrate: 9600,
       parser: parsers.readline("\n")
     }, false)
@@ -17,7 +18,7 @@ function openPort(callback) {
         console.log("Serial port open")
 
         serialPort.on('data', data => {
-          console.log("USB:", data)
+          console.log("Boiler:", data)
         })
 
         callback()

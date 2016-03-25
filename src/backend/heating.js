@@ -2,17 +2,23 @@
 import fluxlet from "fluxlet/lib/development"
 import { update, chain } from "fluxlet-immutable"
 import { allOf } from '../util/predicates'
-//import callBoiler from './boiler-http'
-import callBoiler from './boiler-usb'
+import callBoilerHTTP from './boiler-http'
+import callBoilerSerial from './boiler-serial'
 import record from './recorder'
 import { inquirer } from './inquiry'
 
 import { mihomeTrvs } from '../util/things'
+import { boilerBackend } from '../../settings'
 
 import values from 'object.values'
 if (!Object.values) values.shim()
 
 const trvIds = Object.values(mihomeTrvs)
+
+const callBoiler = {
+  http: callBoilerHTTP,
+  serial: callBoilerSerial
+}
 
 const initTrv = () => ({
   target: null,
@@ -48,7 +54,7 @@ export function setup(...plugins) {
     .sideEffects(
       mapOf(trvIds, setTrvTarget, id => `setTrvTarget_${id}`),
     {
-      callBoiler,
+      callBoiler: callBoiler[boilerBackend],
       record
     })
     .init(dispatchers => {
