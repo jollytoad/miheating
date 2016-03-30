@@ -119,6 +119,10 @@ void setup() {
     Serial.begin(9600);
   }
 
+  if (DEBUG) {
+    Serial.println("started");
+  }
+
   // Disable SD card
   pinMode(4, OUTPUT);
   digitalWrite(4, HIGH);
@@ -148,18 +152,25 @@ void setup() {
   }
 
   if (USB && DEBUG) {
-    Serial.println("started, usb enabled");
+    Serial.println("usb enabled");
   }
 
   digitalWrite(heatLED, LOW);
   digitalWrite(txLED, LOW);
   digitalWrite(netLED, LOW);
 
-  wdt_enable(WDTO_8S);
+  if (HTTP) {
+    wdt_enable(WDTO_8S);
+    if (DEBUG) {
+      Serial.println("watchdog timer enabled");
+    }
+  } else {
+    wdt_disable();
+  }
 }
 
 void loop() {
-  if (millis() < lastIncoming + HEART_BEAT) {
+  if (HTTP && millis() < lastIncoming + HEART_BEAT) {
     wdt_reset();
   }
   
