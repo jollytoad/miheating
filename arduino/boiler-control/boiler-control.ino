@@ -78,10 +78,6 @@ EthernetServer server(80);
 
 String HTTP_line;
 
-//#define heatLED 8
-//#define txLED 9
-//#define netLED 7
-
 #define heatLED 13
 #define txLED 9
 #define netLED 7
@@ -159,18 +155,15 @@ void setup() {
   digitalWrite(txLED, LOW);
   digitalWrite(netLED, LOW);
 
-  if (HTTP) {
-    wdt_enable(WDTO_8S);
-    if (DEBUG) {
-      Serial.println("watchdog timer enabled");
-    }
-  } else {
-    wdt_disable();
+  wdt_enable(WDTO_8S);
+  if (DEBUG) {
+    Serial.println("watchdog timer enabled");
   }
 }
 
 void loop() {
-  if (HTTP && millis() < lastIncoming + HEART_BEAT) {
+  // Stop resetting the watchdog timer if we haven't received an incoming message for a while
+  if (millis() < lastIncoming + HEART_BEAT) {
     wdt_reset();
   }
   

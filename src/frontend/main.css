@@ -14,6 +14,9 @@ body {
 .table li {
   white-space: nowrap;
 }
+.table>tbody>tr>td {
+  vertical-align: middle;
+}
 
 .chart {
   font-size: 10px;
@@ -21,4 +24,13 @@ body {
 
 .chart > div {
   background-color: white;
+}
+
+.current {
+  font-size: 30px;
+  font-weight: bold;
+}
+
+.target {
+  font-size: 20px;
 }

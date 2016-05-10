@@ -17,7 +17,8 @@ const trvIds = Object.values(mihomeTrvs)
 
 const callBoiler = {
   http: callBoilerHTTP,
-  serial: callBoilerSerial
+  serial: callBoilerSerial,
+  none: () => {}
 }
 
 const initTrv = () => ({

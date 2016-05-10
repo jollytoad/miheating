@@ -22,7 +22,7 @@ function transformProps(props) {
       } else if (key.startsWith("data-")) {
         // Move any data- attributes into the dataset property
         props.dataset = props.dataset || {}
-        props.dataset[key.substr(5)] = props[key]
+        props.dataset[dataKey(key)] = props[key]
         delete props[key]
 
       } else if (key.indexOf("-") !== -1) {
@@ -34,4 +34,8 @@ function transformProps(props) {
     })
   }
   return props
+}
+
+function dataKey(input) {
+    return input.toLowerCase().replace(/^data-/,'').replace(/-(.)/g, (m, a) => a.toUpperCase())
 }

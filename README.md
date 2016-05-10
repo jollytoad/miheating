@@ -45,3 +45,7 @@ Then install and start:
     $ npm start
 
 Open http://localhost:3030/dev.html
+
+### Bundling for Production
+
+    $ npm run bundle

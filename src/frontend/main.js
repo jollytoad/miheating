@@ -7,7 +7,7 @@ import patch from 'virtual-dom/patch'
 import { root, initRoot } from './templates'
 import { render, whenNotRendering } from './render-utils'
 import { map, mapIf, mapFrom } from '../util/map2'
-import { bindReady } from './bindings'
+import { bindReady, bindButtons } from './bindings'
 import { mihomeTrvs } from '../util/things'
 import { periodDuration, topOfPeriod } from '../util/history'
 import { anyOf, allOf, not } from '../util/predicates'
@@ -25,9 +25,16 @@ export function setup() {
     .actions({
       begin,
       setRaw,
-      rangeChange
+      rangeChange,
+      setTargetTemperature,
+      toggleGraphs
     })
     .calculations({
+      indexSubdevices
+    },{
+      receivedCurrentTemperature,
+      receivedTargetTemperature
+    },{
       renderRoot
     },{
       generateViewDiff
@@ -37,14 +44,17 @@ export function setup() {
       loadTimers,
       loadTemperatureReports,
       loadHistory
-    }, {
+    },{
+      submitTargetTemperatures
+    },{
       patchDOM
-    }, {
+    },{
       renderGraphs,
       adjustGraphs
     })
     .init(
-      bindReady
+      bindReady,
+      bindButtons
     )
 }
 
@@ -63,11 +73,15 @@ const initialState = {
     temperatures: {},
     history: {}
   },
-  //model: {
-  //},
-  //trans: { // transient state
-  //  graphData: {}
-  //},
+  model: {
+    graphs: false,
+    currentTemperatures: {},
+    targetTemperatures: {}
+  },
+  trans: { // transient state
+    subdeviceIndex: {}
+   // graphData: {}
+  },
   view: {
     range: {},
     vdom: initRoot(),
@@ -91,10 +105,16 @@ const setRaw = (property, data) => update(["raw"].concat(property), data)
 
 const rangeChange = (id, start, end) => update("view.range", {id, start, end})
 
+const setTargetTemperature = (id, temperature) => update(["model", "targetTemperatures", ""+id], temperature)
+
+const toggleGraphs = () => update("model.graphs", graphs => !graphs)
+
 // ## Predicates
 // For use in _when_ clauses of calculations and side-effects
 // (state, prev) -> boolean
 
+const graphsEnabled = (state, prev) => state.model.graphs === true
+const graphsJustEnabled = (state, prev) => state.model.graphs === true && prev.model.graphs === false
 const reqChanged = (state, prev) => state.req !== prev.req
 const subDevicesChanged = (state, prev) => state.raw.subdevices !== prev.raw.subdevices
 const timersChanged = (state, prev) => state.raw.timers !== prev.raw.timers
@@ -102,7 +122,8 @@ const temperaturesChanged = (state, prev) => state.raw.temperatures !== prev.raw
 const historyChanged = (state, prev) => state.raw.history !== prev.raw.history
 const rangeChanged = (state, prev) => state.view.range !== prev.view.range
 //const graphDataChanged = (state, prev) => state.trans.graphData !== prev.trans.graphData
-//const modelChanged = (state, prev) => state.model !== prev.model
+const modelChanged = (state, prev) => state.model !== prev.model
+const targetTemperaturesChanged = (state, prev) => state.model.targetTemperatures !== prev.model.targetTemperatures
 //const transChanged = (state, prev) => state.trans !== prev.trans
 const vdomChanged = (state, prev) => state.view.vdom !== prev.view.vdom
 const diffReady = (state, prev) => state.view.diff !== null && state.view.diff !== prev.view.diff
@@ -116,9 +137,26 @@ const sourceIs = source => state => state.req.source === source
 //  then: update("trans.graphData", mapFrom("raw.temperatures", map(([x, y]) => ({x, y}))))
 //}
 
+const indexSubdevices = {
+  when: subDevicesChanged,
+  then: update("trans.subdeviceIndex", (x, state) => state.raw.subdevices.reduce((memo, subdevice, idx) => { memo[subdevice.id] = idx; return memo }, {}))
+}
+
+const extractRawData = (rawProp, modelProp) => ({
+  when: subDevicesChanged,
+  then: state => chain(...state.raw.subdevices.map(subdevice =>
+      subdevice[rawProp] != undefined ?
+        update(["model", modelProp, subdevice.id], subdevice[rawProp]) :
+        s => s
+  ))(state)
+})
+
+const receivedCurrentTemperature = extractRawData("last_temperature", "currentTemperatures")
+const receivedTargetTemperature = extractRawData("target_temperature", "targetTemperatures")
+
 const renderRoot = {
-  when: anyOf(subDevicesChanged, temperaturesChanged),
-  then: update("view.vdom", (x, {raw}) => root(raw))
+  when: anyOf(modelChanged, subDevicesChanged, temperaturesChanged),
+  then: update("view.vdom", (x, {raw, model}) => root(raw, model))
 }
 
 const generateViewDiff = {
@@ -136,7 +174,7 @@ const loadSubDevices = {
 }
 
 const loadTimers = {
-  when: subDevicesChanged,
+  when: anyOf(graphsJustEnabled, allOf(graphsEnabled, subDevicesChanged)),
   then: (state, p, dispatch) => {
     state.raw.subdevices.forEach(({id, device_type}) => {
       if (device_type === "etrv") {
@@ -152,7 +190,7 @@ const loadTimers = {
 
 
 const loadTemperatureReports = {
-  when: allOf(subDevicesChanged, sourceIs('mihome')),
+  when: allOf(sourceIs('mihome'), anyOf(graphsJustEnabled, allOf(graphsEnabled, subDevicesChanged))),
   then: (state, p, dispatch) => {
     state.raw.subdevices.forEach(({id, device_type}) => {
       if (device_type === "etrv") {
@@ -171,7 +209,7 @@ const loadTemperatureReports = {
 }
 
 const loadHistory = {
-  when: reqChanged,
+  when: anyOf(graphsJustEnabled, allOf(graphsEnabled, reqChanged)),
   then: (state, p, dispatch) => {
     let t = topOfPeriod(state.req.start)
     while (t < state.req.end) {
@@ -180,6 +218,19 @@ const loadHistory = {
       }
       t += periodDuration
     }
+  }
+}
+
+const submitTargetTemperatures = {
+  when: targetTemperaturesChanged,
+  then: (state, prev, dispatch) => {
+    $.each(state.model.targetTemperatures, (id, temperature) => {
+      const prevTemperature = prev.model.targetTemperatures[id];
+
+      if (prevTemperature != undefined && temperature !== prevTemperature) {
+        fetchData(dispatch, ['subdevices', state.trans.subdeviceIndex[id]], 'subdevices/set_target_temperature', { id: +id, temperature })
+      }
+    })
   }
 }
 
@@ -211,6 +262,18 @@ const createBoilerSeries = (history, range) =>
       .filter(x => x !== null)
 
 const renderGraph = (id, temperatureData, timerData, history, range, dispatch) => {
+
+  const container = document.getElementById(`chart-${id}`)
+
+  console.log(id, container)
+
+  if (!container) {
+    return
+  }
+
+  // HACK: colspan doesn't seem to get rendered in the DOM
+  container.colSpan = 4
+
   let temperatureSeries
 
   if (range.source === 'mihome') {
@@ -225,10 +288,6 @@ const renderGraph = (id, temperatureData, timerData, history, range, dispatch) =
   temperatureSeries && dataset.add(temperatureSeries)
   timerSeries && dataset.add(timerSeries)
   boilerSeries && dataset.add(boilerSeries)
-
-  const container = document.getElementById(`chart-${id}`)
-
-  console.log(id, container)
 
   let graph = $.data(container, "graph")
 
@@ -286,7 +345,7 @@ const renderGraph = (id, temperatureData, timerData, history, range, dispatch) =
 }
 
 const renderGraphs = {
-  when: anyOf(temperaturesChanged, timersChanged, historyChanged),
+  when: allOf(graphsEnabled, anyOf(graphsJustEnabled, temperaturesChanged, timersChanged, historyChanged)),
   then: render((state, prev, dispatch) => {
     Object.keys(mihomeTrvs).forEach(id => {
       renderGraph(id, state.raw.temperatures[id], state.raw.timers[id], state.raw.history, state.req, dispatch)
