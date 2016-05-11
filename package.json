@@ -12,7 +12,7 @@
     "babel-cli": "^6.8.0",
     "babel-plugin-syntax-jsx": "^6.8.0",
     "babel-plugin-transform-react-jsx": "^6.8.0",
-    "babel-preset-node5": "^11.0.2",
+    "babel-preset-node6": "^11.0.0",
     "jspm": "^0.16.34",
     "uglify-js": "^2.6.2"
   },
@@ -40,11 +40,11 @@
     "express": "^4.13.4",
     "fluxlet": "0.0.3",
     "fluxlet-immutable": "0.0.2",
-    "node-fetch": "^1.5.1",
+    "node-fetch": "^1.5.2",
     "object.entries": "^1.0.3",
     "object.values": "^1.0.3",
     "proxy-middleware": "^0.15.0",
-    "serialport": "^3.1.1",
+    "serialport": "^3.1.2-beta2",
     "url": "^0.11.0"
   }
 }
