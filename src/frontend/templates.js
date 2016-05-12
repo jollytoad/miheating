@@ -7,12 +7,12 @@ import hx from './jsx-h'
 export const initRoot = () =>
   <div id="root"/>
 
-export const root = (raw, model) =>
+export const root = ({ raw, model, refresh }) =>
     <div id="root">
       <nav class="navbar navbar-inverse navbar-fixed-top">
         <div class="container">
           <div class="navbar-left">
-            <a class="navbar-brand" href="#">Mi|Heating</a>
+            <a class="navbar-brand" href="#">{new Date(refresh).toISOString().replace('T',' ').replace(/\..+/,'')}</a>
           </div>
           <button type="button" class="toggle-graphs btn btn-default navbar-btn navbar-right pull-right">
             <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>

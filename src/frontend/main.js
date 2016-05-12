@@ -12,6 +12,7 @@ import { mihomeTrvs } from '../util/things'
 import { periodDuration, topOfPeriod } from '../util/history'
 import { anyOf, allOf, not } from '../util/predicates'
 import vis from "vis"
+import "whatwg-fetch"
 import "vis/dist/vis.css!"
 
 // TODO: Store and fetch data from IndexedDB
@@ -23,7 +24,7 @@ export function setup() {
   fluxlet("mi")
     .state(initialState)
     .actions({
-      begin,
+      refresh,
       setRaw,
       rangeChange,
       setTargetTemperature,
@@ -61,9 +62,9 @@ export function setup() {
 // # Initial State
 
 const initialState = {
-  begin: false,
+  refresh: null,
   req: {
-    source: null,
+    source: 'history',
     start: null,
     end: null
   },
@@ -92,13 +93,13 @@ const initialState = {
 
 // ## Actions
 
-const begin = (params) => chain(
-    update("begin", true),
-    update("req", {
-      source: params.source || 'history',
-      start: Date.now()-24*60*60*1000,
-      end: Date.now()
-    })
+const refresh = ({ source, now }) => chain(
+    update("refresh", now),
+    update("req", req => ({
+      source: source || req.source,
+      start: now-24*60*60*1000,
+      end: now
+    }))
 )
 
 const setRaw = (property, data) => update(["raw"].concat(property), data)
@@ -113,6 +114,7 @@ const toggleGraphs = () => update("model.graphs", graphs => !graphs)
 // For use in _when_ clauses of calculations and side-effects
 // (state, prev) -> boolean
 
+const refreshed = (state, prev) => state.refresh !== prev.refresh
 const graphsEnabled = (state, prev) => state.model.graphs === true
 const graphsJustEnabled = (state, prev) => state.model.graphs === true && prev.model.graphs === false
 const reqChanged = (state, prev) => state.req !== prev.req
@@ -144,11 +146,14 @@ const indexSubdevices = {
 
 const extractRawData = (rawProp, modelProp) => ({
   when: subDevicesChanged,
-  then: state => chain(...state.raw.subdevices.map(subdevice =>
-      subdevice[rawProp] != undefined ?
-        update(["model", modelProp, subdevice.id], subdevice[rawProp]) :
-        s => s
-  ))(state)
+  then: update(["model", modelProp], (data, state) => state.raw.subdevices.reduce((memo, subdevice) => {
+        if (subdevice[rawProp] != null) {
+          memo[subdevice.id] = subdevice[rawProp]
+        } else if (data[subdevice.id] != null) {
+          memo[subdevice.id] = data[subdevice.id]
+        }
+        return memo
+      }, {}))
 })
 
 const receivedCurrentTemperature = extractRawData("last_temperature", "currentTemperatures")
@@ -156,7 +161,7 @@ const receivedTargetTemperature = extractRawData("target_temperature", "targetTe
 
 const renderRoot = {
   when: anyOf(modelChanged, subDevicesChanged, temperaturesChanged),
-  then: update("view.vdom", (x, {raw, model}) => root(raw, model))
+  then: update("view.vdom", (x, state) => root(state))
 }
 
 const generateViewDiff = {
@@ -167,7 +172,7 @@ const generateViewDiff = {
 // ## Request Side Effects
 
 const loadSubDevices = {
-  when: (state, prev) => state.begin && !prev.begin,
+  when: refreshed,
   then: (s, p, dispatch) => {
     fetchData(dispatch, 'subdevices', 'subdevices/list')
   }

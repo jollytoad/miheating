@@ -3,9 +3,15 @@ import $ from "jquery"
 
 // ## Bindings
 
-export function bindReady({ begin }) {
+export function bindReady({ refresh }) {
   $(() => {
-    begin({ source: getSource(window.location.search) })
+    function doRefresh() {
+      refresh({source: getSource(window.location.search), now: Date.now()})
+    }
+
+    window.setInterval(doRefresh, 60000)
+
+    doRefresh()
   })
 }
 
