@@ -12,7 +12,6 @@ import { mihomeTrvs } from '../util/things'
 import { periodDuration, topOfPeriod } from '../util/history'
 import { anyOf, allOf, not } from '../util/predicates'
 import vis from "vis"
-import "whatwg-fetch"
 import "vis/dist/vis.css!"
 
 // TODO: Store and fetch data from IndexedDB
