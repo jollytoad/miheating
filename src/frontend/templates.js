@@ -2,7 +2,7 @@
 "use strict"
 import hx from './jsx-h'
 
-const time = new Intl.DateTimeFormat('en-GB', { hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
+const time = new Intl.DateTimeFormat('en-GB', { hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit' })
 
 // ## Templates
 
