@@ -18,7 +18,7 @@ export function bindReady({ refresh }) {
           refreshHandle = window.setInterval(tryRefresh, 60000)
         }
 
-        refresh({source: getSource(window.location.search), now: Date.now()})
+        refresh(refreshOpts())
       }
     }
 
@@ -28,16 +28,29 @@ export function bindReady({ refresh }) {
   })
 }
 
-function getSource(url) {
-  return (/source=(\w+)/.exec(url) || [])[1]
+export function bindButtons({ setTargetTemperature, toggleGraphs, refresh }) {
+  $(document)
+      .on("click", "[data-set-target-temperature]", e => {
+        e.preventDefault()
+        setTargetTemperature(e.currentTarget.dataset.id, +e.currentTarget.dataset.setTargetTemperature)
+      })
+      .on("click", ".toggle-graphs", e => {
+        e.preventDefault()
+        toggleGraphs()
+      })
+      .on("click", ".refresh", e => {
+        e.preventDefault()
+        refresh(refreshOpts())
+      })
 }
 
-export function bindButtons({ setTargetTemperature, toggleGraphs }) {
-  $(document).on("click", "[data-set-target-temperature]", e => {
-    setTargetTemperature(e.currentTarget.dataset.id, +e.currentTarget.dataset.setTargetTemperature)
-  })
-  
-  $(document).on("click", ".toggle-graphs", e => {
-    toggleGraphs()
-  })
+function refreshOpts() {
+  return {
+    source: getSource(window.location.search),
+    now: Date.now()
+  }
+}
+
+function getSource(url) {
+  return (/source=(\w+)/.exec(url) || [])[1]
 }

@@ -2,6 +2,8 @@
 "use strict"
 import hx from './jsx-h'
 
+const time = new Intl.DateTimeFormat('en-GB', { hour12: true, month: 'short', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' })
+
 // ## Templates
 
 export const initRoot = () =>
@@ -12,7 +14,7 @@ export const root = ({ raw, model, refresh }) =>
       <nav class="navbar navbar-inverse navbar-fixed-top">
         <div class="container">
           <div class="navbar-left">
-            <a class="navbar-brand" href="#">{new Date(refresh).toISOString().replace('T',' ').replace(/\..+/,'')}</a>
+            <a class="navbar-brand refresh" href="#">{time.format(refresh)}</a>
           </div>
           <button type="button" class="toggle-graphs btn btn-default navbar-btn navbar-right pull-right">
             <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
