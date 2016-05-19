@@ -5,13 +5,26 @@ import $ from "jquery"
 
 export function bindReady({ refresh }) {
   $(() => {
-    function doRefresh() {
-      refresh({source: getSource(window.location.search), now: Date.now()})
+    let refreshHandle = null
+
+    function tryRefresh() {
+      if (document.hidden) {
+        console.log("Stop polling")
+        window.clearInterval(refreshHandle)
+        refreshHandle = null
+      } else {
+        if (!refreshHandle) {
+          console.log("Start polling")
+          refreshHandle = window.setInterval(tryRefresh, 60000)
+        }
+
+        refresh({source: getSource(window.location.search), now: Date.now()})
+      }
     }
 
-    window.setInterval(doRefresh, 60000)
+    document.addEventListener("visibilitychange", tryRefresh, false)
 
-    doRefresh()
+    tryRefresh()
   })
 }
 
