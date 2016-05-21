@@ -3,16 +3,20 @@ import $ from "jquery"
 
 // ## Bindings
 
-export function bindReady({ refresh, suspend }) {
+export function bindReady({ suspend, resume }) {
   $(() => {
     function updateSuspend() {
-      suspend(document.hidden || !navigator.onLine)
+      if (document.hidden || !navigator.onLine) {
+        suspend()
+      } else {
+        resume({ now: Date.now() })
+      }
     }
 
     $(document).on("visibilitychange", updateSuspend)
     $(window).on("online offline", updateSuspend)
 
-    refresh({
+    resume({
       source: getSource(window.location.search),
       now: Date.now()
     })

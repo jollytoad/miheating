@@ -25,12 +25,13 @@ export function setup() {
     .state(initialState)
     .actions({
       refresh,
+      suspend,
+      resume,
       setRaw,
       fetchFailed,
       rangeChange,
       setTargetTemperature,
-      toggleGraphs,
-      suspend
+      toggleGraphs
     })
     .calculations({
       indexSubdevices,
@@ -131,7 +132,8 @@ const setTargetTemperature = (id, temperature) => update(["model", "targetTemper
 
 const toggleGraphs = () => update("model.graphs", graphs => !graphs)
 
-const suspend = (val) => update("req.suspend", val)
+const suspend = () => update("req.suspend", true)
+const resume = refresh.then
 
 // ## Predicates
 // For use in _when_ clauses of calculations and side-effects
