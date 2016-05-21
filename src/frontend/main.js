@@ -11,6 +11,7 @@ import { bindReady, bindButtons } from './bindings'
 import { mihomeTrvs } from '../util/things'
 import { periodDuration, topOfPeriod } from '../util/history'
 import { anyOf, allOf, not } from '../util/predicates'
+import { uiRefresh, uiRetry } from "../../settings.js"
 import vis from "vis"
 import "vis/dist/vis.css!"
 
@@ -25,12 +26,16 @@ export function setup() {
     .actions({
       refresh,
       setRaw,
+      fetchFailed,
       rangeChange,
       setTargetTemperature,
-      toggleGraphs
+      toggleGraphs,
+      suspend
     })
     .calculations({
-      indexSubdevices
+      indexSubdevices,
+      retryOnError,
+      pollAfterLoading
     },{
       receivedCurrentTemperature,
       receivedTargetTemperature
@@ -47,6 +52,8 @@ export function setup() {
     },{
       submitTargetTemperatures
     },{
+      polling
+    },{
       patchDOM
     },{
       renderGraphs,
@@ -62,10 +69,14 @@ export function setup() {
 
 const initialState = {
   refresh: null,
+  loaded: null,
+  error: null,
   req: {
+    suspend: false,
     source: 'history',
     start: null,
-    end: null
+    end: null,
+    interval: uiRefresh
   },
   raw: {
     subdevices: [],
@@ -92,22 +103,35 @@ const initialState = {
 
 // ## Actions
 
-const refresh = ({ source, now }) => chain(
-    update("refresh", now),
-    update("req", req => ({
-      source: source || req.source,
-      start: now-24*60*60*1000,
-      end: now
-    }))
+const refresh = {
+  when: (state) => !state.req.suspend,
+  then: ({source, now}) => chain(
+      update("refresh", now),
+      update("req", req => ({
+        source: source || req.source,
+        start: now - 24 * 60 * 60 * 1000,
+        end: now,
+        interval: req.interval,
+        suspend: false
+      }))
+  )
+}
+
+const setRaw = (property, data, now) => chain(
+    update(["raw"].concat(property), data),
+    update("loaded", now),
+    update("error", null)
 )
 
-const setRaw = (property, data) => update(["raw"].concat(property), data)
+const fetchFailed = (reason) => update("error", reason.message)
 
 const rangeChange = (id, start, end) => update("view.range", {id, start, end})
 
 const setTargetTemperature = (id, temperature) => update(["model", "targetTemperatures", ""+id], temperature)
 
 const toggleGraphs = () => update("model.graphs", graphs => !graphs)
+
+const suspend = (val) => update("req.suspend", val)
 
 // ## Predicates
 // For use in _when_ clauses of calculations and side-effects
@@ -116,7 +140,6 @@ const toggleGraphs = () => update("model.graphs", graphs => !graphs)
 const refreshed = (state, prev) => state.refresh !== prev.refresh
 const graphsEnabled = (state, prev) => state.model.graphs === true
 const graphsJustEnabled = (state, prev) => state.model.graphs === true && prev.model.graphs === false
-const reqChanged = (state, prev) => state.req !== prev.req
 const subDevicesChanged = (state, prev) => state.raw.subdevices !== prev.raw.subdevices
 const timersChanged = (state, prev) => state.raw.timers !== prev.raw.timers
 const temperaturesChanged = (state, prev) => state.raw.temperatures !== prev.raw.temperatures
@@ -128,6 +151,9 @@ const targetTemperaturesChanged = (state, prev) => state.model.targetTemperature
 //const transChanged = (state, prev) => state.trans !== prev.trans
 const vdomChanged = (state, prev) => state.view.vdom !== prev.view.vdom
 const diffReady = (state, prev) => state.view.diff !== null && state.view.diff !== prev.view.diff
+const hasError = (state, prev) => state.error !== null && state.error !== prev.error
+const hasLoaded = (state, prev) => state.error === null && state.loaded !== prev.loaded
+const pollingChanged = (state, prev) => state.req.suspend !== prev.req.suspend || state.req.interval !== prev.req.interval
 
 const sourceIs = source => state => state.req.source === source
 
@@ -159,13 +185,23 @@ const receivedCurrentTemperature = extractRawData("last_temperature", "currentTe
 const receivedTargetTemperature = extractRawData("target_temperature", "targetTemperatures")
 
 const renderRoot = {
-  when: anyOf(modelChanged, subDevicesChanged, temperaturesChanged),
+  when: anyOf(modelChanged, subDevicesChanged, temperaturesChanged, hasError, pollingChanged),
   then: update("view.vdom", (x, state) => root(state))
 }
 
 const generateViewDiff = {
   when: vdomChanged,
   then: (state, prev) => update("view.diff", () => diff(prev.view.vdom, state.view.vdom))(state)
+}
+
+const retryOnError = {
+  when: hasError,
+  then: update("req.interval", uiRetry)
+}
+
+const pollAfterLoading = {
+  when: hasLoaded,
+  then: update("req.interval", uiRefresh)
 }
 
 // ## Request Side Effects
@@ -213,7 +249,7 @@ const loadTemperatureReports = {
 }
 
 const loadHistory = {
-  when: anyOf(graphsJustEnabled, allOf(graphsEnabled, reqChanged)),
+  when: anyOf(graphsJustEnabled, allOf(graphsEnabled, refreshed)),
   then: (state, p, dispatch) => {
     let t = topOfPeriod(state.req.start)
     while (t < state.req.end) {
@@ -235,6 +271,23 @@ const submitTargetTemperatures = {
         fetchData(dispatch, ['subdevices', state.trans.subdeviceIndex[id]], 'subdevices/set_target_temperature', { id: +id, temperature })
       }
     })
+  }
+}
+
+let pollingHandle = null
+
+const polling = {
+  when: pollingChanged,
+  then: (state, prev, { refresh }) => {
+    window.clearInterval(pollingHandle)
+    pollingHandle = null
+
+    if (!state.req.suspend) {
+      console.log("Start polling", state.req.interval)
+      pollingHandle = window.setInterval(() => { refresh({ now: Date.now() }) }, state.req.interval)
+    } else {
+      console.log("Stop polling")
+    }
   }
 }
 
@@ -377,9 +430,11 @@ const arrEq = (path1, path2) => path1 != null && path2 != null &&
 const fetchData = (dispatch, target, api, params) =>
     fetch(`api/v1/${api}` + (params ? "?params=" + encodeURIComponent(JSON.stringify(params)) : ''))
         .then(response => response.json())
-        .then(content => dispatch.setRaw(target, content.data))
+        .then(content => dispatch.setRaw(target, content.data, Date.now()))
+        .catch(dispatch.fetchFailed)
 
 const fetchHistory = (dispatch, start) =>
         fetch(`history/${start}.json`)
             .then(response => response.json())
-            .then(data => dispatch.setRaw(['history',start], data))
+            .then(data => dispatch.setRaw(['history',start], data, Date.now()))
+            .catch(dispatch.fetchFailed)

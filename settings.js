@@ -3,5 +3,7 @@ module.exports = {
   boilerBackend: 'serial', // 'serial' or 'http'
   boilerBaseUrl: 'http://192.168.1.123',
   boilerSerialDev: '/dev/ttyUSB0',
-  trvPolling: 60000
+  trvPolling: 60000,
+  uiRefresh: 60000,
+  uiRetry: 1000
 }

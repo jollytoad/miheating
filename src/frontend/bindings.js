@@ -3,28 +3,19 @@ import $ from "jquery"
 
 // ## Bindings
 
-export function bindReady({ refresh }) {
+export function bindReady({ refresh, suspend }) {
   $(() => {
-    let refreshHandle = null
-
-    function tryRefresh() {
-      if (document.hidden) {
-        console.log("Stop polling")
-        window.clearInterval(refreshHandle)
-        refreshHandle = null
-      } else {
-        if (!refreshHandle) {
-          console.log("Start polling")
-          refreshHandle = window.setInterval(tryRefresh, 60000)
-        }
-
-        refresh(refreshOpts())
-      }
+    function updateSuspend() {
+      suspend(document.hidden || !navigator.onLine)
     }
 
-    document.addEventListener("visibilitychange", tryRefresh, false)
+    $(document).on("visibilitychange", updateSuspend)
+    $(window).on("online offline", updateSuspend)
 
-    tryRefresh()
+    refresh({
+      source: getSource(window.location.search),
+      now: Date.now()
+    })
   })
 }
 
@@ -40,15 +31,8 @@ export function bindButtons({ setTargetTemperature, toggleGraphs, refresh }) {
       })
       .on("click", ".refresh", e => {
         e.preventDefault()
-        refresh(refreshOpts())
+        refresh({ now: Date.now() })
       })
-}
-
-function refreshOpts() {
-  return {
-    source: getSource(window.location.search),
-    now: Date.now()
-  }
 }
 
 function getSource(url) {

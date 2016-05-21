@@ -9,12 +9,12 @@ const time = new Intl.DateTimeFormat('en-GB', { hour12: true, month: 'short', da
 export const initRoot = () =>
   <div id="root"/>
 
-export const root = ({ raw, model, refresh }) =>
+export const root = ({ raw, model, loaded, error, req: { suspend } }) =>
     <div id="root">
       <nav class="navbar navbar-inverse navbar-fixed-top">
         <div class="container">
           <div class="navbar-left">
-            <a class="navbar-brand refresh" href="#">{time.format(refresh)}</a>
+            <a class="navbar-brand refresh" href="#">{suspend ? "Offline" : (error ? error : time.format(loaded))}</a>
           </div>
           <button type="button" class="toggle-graphs btn btn-default navbar-btn navbar-right pull-right">
             <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
