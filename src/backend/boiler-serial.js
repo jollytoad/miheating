@@ -29,8 +29,8 @@ function openPort(callback) {
   }
 }
 
-export default function({ boiler: { demand }}, x, { setFlame }) {
-  console.log("CALL FOR HEAT: ", demand)
+export default function({ boiler: { demand, low, high }}, x, { setFlame }) {
+  console.log("CALL FOR HEAT: ", demand, " low: ", low, " high: ", high)
 
   openPort(() => {
     serialPort.write(demand ? "1\n" : "0\n", (error, results) => {
@@ -42,5 +42,7 @@ export default function({ boiler: { demand }}, x, { setFlame }) {
         setFlame(demand)
       }
     })
+
+    serialPort.write(`l${low}\nh${high}\n`)
   })
 }

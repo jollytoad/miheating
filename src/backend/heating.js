@@ -50,7 +50,8 @@ export function setup(...plugins) {
     .calculations(
         mapOf(trvIds, trvDemand, id => `trvDemand_${id}`),
     {
-      boilerDemand
+      boilerDemand,
+      lowHigh
     })
     .sideEffects(
       mapOf(trvIds, setTrvTarget, id => `setTrvTarget_${id}`),
@@ -69,7 +70,9 @@ const initialState = {
   trvs: mapOf(trvIds, initTrv),
   boiler: {
     flame: null,
-    demand: null
+    demand: null,
+    low: 0,
+    high: 0
   }
 }
 
@@ -114,6 +117,14 @@ const boilerDemand = {
   when: trvsChanged,
   then: update('boiler.demand',
       (x, { trvs }) => Object.values(trvs).some(trv => trv.demand))
+}
+
+const lowHigh = {
+  when: trvsChanged,
+  then: chain(
+    update('boiler.low', (x, { trvs }) => Math.min(...Object.values(trvs).map(trv => trv.current))),
+    update('boiler.high', (x, { trvs }) => Math.max(...Object.values(trvs).map(trv => trv.current)))
+  )
 }
 
 // ## Side Effects

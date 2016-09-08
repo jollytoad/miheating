@@ -107,11 +107,11 @@ const initialState = {
 const refresh = {
   when: (state) => !state.req.suspend,
   then: ({source, now}) => chain(
-      update("refresh", now),
+      update("refresh", +now),
       update("req", req => ({
         source: source || req.source,
         start: now - 24 * 60 * 60 * 1000,
-        end: now,
+        end: +now,
         interval: req.interval,
         suspend: false
       }))
