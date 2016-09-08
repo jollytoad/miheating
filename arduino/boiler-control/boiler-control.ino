@@ -1,4 +1,5 @@
 #include <SPI.h>
+#include <FastLED.h>
 #include <avr/wdt.h>
 
 const unsigned int on[] = {
@@ -69,12 +70,15 @@ const unsigned int off[] = {
 65534,65535
 };
 
+// RGB LEDs
+const int rLED[] = { 3, 9 };
+const int gLED[] = { 5, 10 };
+const int bLED[] = { 6, 11 };
+
 #define heatLED 13
-#define txLED 9
-#define netLED 7
 
 #define tx 4
-#define go 6
+#define go 8
 #define DEBUG true
 
 const unsigned long debounce = 3000000;
@@ -99,6 +103,8 @@ bool test_mode = false;
 unsigned long lastIncoming = 0;
 #define HEART_BEAT 180000
 
+int temp[2] = { 0, 0 };
+
 void setup() {
   Serial.begin(9600);
 
@@ -106,21 +112,11 @@ void setup() {
     Serial.println("started");
   }
 
-  // Disable SD card
-  pinMode(4, OUTPUT);
-  digitalWrite(4, HIGH);
-
   pinMode(tx, OUTPUT);
   digitalWrite(tx, LOW);
 
   pinMode(heatLED, OUTPUT);
   digitalWrite(heatLED, HIGH);
-
-  pinMode(txLED, OUTPUT);
-  digitalWrite(txLED, HIGH);
-
-  pinMode(netLED, OUTPUT);
-  digitalWrite(netLED, HIGH);
 
   pinMode(go, INPUT_PULLUP);
 
@@ -128,14 +124,14 @@ void setup() {
     Serial.println("usb enabled");
   }
 
-  digitalWrite(heatLED, LOW);
-  digitalWrite(txLED, LOW);
-  digitalWrite(netLED, LOW);
-
   wdt_enable(WDTO_8S);
   if (DEBUG) {
     Serial.println("watchdog timer enabled");
   }
+
+  cycleRGB();
+  clearRGB(); delay(333);
+  digitalWrite(heatLED, LOW);
 }
 
 void loop() {
@@ -162,6 +158,45 @@ void loop() {
   }
 }
 
+void showRGB(const int led, const CRGB& rgb) {
+  analogWrite(rLED[led], 255 - rgb.r );
+  analogWrite(gLED[led], 255 - rgb.g );
+  analogWrite(bLED[led], 255 - rgb.b );
+}
+
+void cycleRGB() {
+  for (int h = 0; h <= 255; h++) {
+    showRGB(0, CHSV(h, 255, 255));
+    showRGB(1, CHSV(h, 255, 255));
+    delay(10);
+  }
+}
+
+void clearRGB() {
+  showRGB(0, CRGB::Black);
+  showRGB(1, CRGB::Black);
+}
+
+uint8_t temperatureToHue(int temperature) {
+  return constrain(map(temperature, 15, 28, 160, 0), 0, 160);
+}
+
+void showTemp(const int n) {
+  showRGB(n, temp[0] > 0 ? (CRGB) CHSV(temperatureToHue(temp[n]), 255, heat ? 255 : 80) : CRGB::Black);
+}
+
+void setTemp(const int n, const int t) {
+  temp[n] = t;
+  if (DEBUG) {
+    Serial.print("Set temperature ");
+    Serial.print(n);
+    Serial.print(" to ");
+    Serial.print(temp[n]);
+    Serial.println(" deg.C");
+  }
+  showTemp(n);
+}
+
 void usb() {
   if (Serial.available() > 0) {
     startIncoming();
@@ -171,10 +206,6 @@ void usb() {
     while(Serial.available() > 0) {
       int c = Serial.read();
 
-      if (DEBUG) {
-        Serial.print(c);
-      }
-
       if (c == '1') {
         newHeat = true;
       } else if (c == '0') {
@@ -183,6 +214,10 @@ void usb() {
         test_mode = true;
       } else if (c == 'n') {
         test_mode = false;
+      } else if (c == 'l') {
+        setTemp(0, Serial.parseInt());
+      } else if (c == 'h') {
+        setTemp(1, Serial.parseInt());
       }
     }
 
@@ -192,8 +227,6 @@ void usb() {
 
 void startIncoming() {
   lastIncoming = millis();
-
-  digitalWrite(netLED, HIGH);
 
   if (DEBUG) {
     Serial.println("start incoming");
@@ -208,8 +241,6 @@ void endIncoming(boolean newHeat) {
     if (newHeat != heat) {
       heat = newHeat;
       startTx(true);
-    } else {
-      digitalWrite(netLED, LOW);
     }
 }
 
@@ -223,13 +254,13 @@ void startTx(bool reset) {
   transmit = true;
   edgeIndex = 0;
   len = heat ? sizeof(on) : sizeof(off);
+  showRGB(0, heat ? CRGB::Pink : CRGB(1,1,2));
   started = micros();
   setNextEdge();
 }
 
 void writeEdge() {
   digitalWrite(tx, edgeIndex % 2 ? LOW : HIGH);
-  digitalWrite(txLED, edgeIndex % 2 ? LOW : HIGH);
   edgeIndex++;
   transmit = edgeIndex < len;
   if (transmit) {
@@ -240,9 +271,9 @@ void writeEdge() {
     } else {
       repeat = REPEATS;
       reTransmitPeriod = test_mode ? TEST_GAP : REGULAR_GAP;
-      digitalWrite(netLED, LOW);
     }
     digitalWrite(heatLED, heat ? HIGH : LOW);
+    showTemp(0);
     lastTransmit = micros();
   }
 }
