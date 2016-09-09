@@ -103,6 +103,8 @@ bool test_mode = false;
 unsigned long lastIncoming = 0;
 #define HEART_BEAT 180000
 
+#define LO 0
+#define HI 1
 int temp[2] = { 0, 0 };
 
 void setup() {
@@ -166,15 +168,15 @@ void showRGB(const int led, const CRGB& rgb) {
 
 void cycleRGB() {
   for (int h = 0; h <= 255; h++) {
-    showRGB(0, CHSV(h, 255, 255));
-    showRGB(1, CHSV(h, 255, 255));
+    showRGB(LO, CHSV(h, 255, 255));
+    showRGB(HI, CHSV(h, 255, 255));
     delay(10);
   }
 }
 
 void clearRGB() {
-  showRGB(0, CRGB::Black);
-  showRGB(1, CRGB::Black);
+  showRGB(LO, CRGB::Black);
+  showRGB(HI, CRGB::Black);
 }
 
 uint8_t temperatureToHue(int temperature) {
@@ -182,7 +184,7 @@ uint8_t temperatureToHue(int temperature) {
 }
 
 void showTemp(const int n) {
-  showRGB(n, temp[0] > 0 ? (CRGB) CHSV(temperatureToHue(temp[n]), 255, heat ? 255 : 80) : CRGB::Black);
+  showRGB(n, temp[n] > 0 ? (CRGB) CHSV(temperatureToHue(temp[n]), 255, heat ? 255 : 80) : CRGB::Black);
 }
 
 void setTemp(const int n, const int t) {
@@ -215,9 +217,9 @@ void usb() {
       } else if (c == 'n') {
         test_mode = false;
       } else if (c == 'l') {
-        setTemp(0, Serial.parseInt());
+        setTemp(LO, Serial.parseInt());
       } else if (c == 'h') {
-        setTemp(1, Serial.parseInt());
+        setTemp(HI, Serial.parseInt());
       }
     }
 
@@ -254,7 +256,7 @@ void startTx(bool reset) {
   transmit = true;
   edgeIndex = 0;
   len = heat ? sizeof(on) : sizeof(off);
-  showRGB(0, heat ? CRGB::Pink : CRGB(1,1,2));
+  showRGB(heat ? HI : LO, heat ? CRGB::Pink : CRGB(1,1,2));
   started = micros();
   setNextEdge();
 }
@@ -273,7 +275,8 @@ void writeEdge() {
       reTransmitPeriod = test_mode ? TEST_GAP : REGULAR_GAP;
     }
     digitalWrite(heatLED, heat ? HIGH : LOW);
-    showTemp(0);
+    showTemp(LO);
+    showTemp(HI);
     lastTransmit = micros();
   }
 }
