@@ -104,7 +104,7 @@ unsigned long lastIncoming = 0;
 #define HEART_BEAT 180000
 
 #define TEMP_MIN 15
-#define TEMP_MAX 26
+#define TEMP_MAX 25
 #define TEMP_MIN_HUE 160
 #define TEMP_MAX_HUE 1
 #define TEMP_LED 1
@@ -186,7 +186,7 @@ void updateTempPulse() {
     showRGB(TEMP_LED, CHSV(hue, 255, 255));
   }
   if (!transmit) {
-    showRGB(IND_LED, heat ? CHSV(scale8(wave, 40)+10, 255, 255) : CHSV(96, 255, scale8(wave, 100)+40));
+    showRGB(IND_LED, heat ? CHSV(scale8(wave, 40)+10, 255, 255) : CHSV(96, 255, scale8(wave, 140)+10));
   }
 }
 
