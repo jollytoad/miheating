@@ -103,9 +103,18 @@ bool test_mode = false;
 unsigned long lastIncoming = 0;
 #define HEART_BEAT 180000
 
+#define TEMP_MIN 15
+#define TEMP_MAX 26
+#define TEMP_MIN_HUE 160
+#define TEMP_MAX_HUE 1
+#define TEMP_LED 1
+#define IND_LED  0
 #define LO 0
 #define HI 1
-int temp[2] = { 0, 0 };
+uint8_t tempHue[2] = { 0, 0 };
+uint8_t tempPulse = 0;
+unsigned long tempPulseNextInc = 0;
+#define TEMP_PULSE_GAP 20000
 
 void setup() {
   Serial.begin(9600);
@@ -137,26 +146,47 @@ void setup() {
 }
 
 void loop() {
+  const unsigned long now = micros();
+
   // Stop resetting the watchdog timer if we haven't received an incoming message for a while
   if (millis() < lastIncoming + HEART_BEAT) {
     wdt_reset();
   }
   
   if (transmit) {
-    if (micros() >= nextEdgeTime) {
+    if (now >= nextEdgeTime) {
       writeEdge();
     }
   } else {
-    if (!digitalRead(go) && micros() >= started+debounce) {
+    if (!digitalRead(go) && now >= started+debounce) {
       heat = !heat;
       startTx(true);
     } else {
       usb();
     }
     
-    if (micros() >= lastTransmit+reTransmitPeriod) {
+    if (now >= lastTransmit+reTransmitPeriod) {
       startTx(false);
     }
+  }
+
+  if (now >= tempPulseNextInc) {
+    updateTempPulse();
+  }
+}
+
+void updateTempPulse() {
+  tempPulse++;
+  tempPulseNextInc = micros() + TEMP_PULSE_GAP;
+  const uint8_t wave = cubicwave8(tempPulse);
+  if (tempHue[0] == 0 || tempHue[1] == 0) {
+    showRGB(TEMP_LED, CRGB::Pink);
+  } else {
+    const uint8_t hue = scale8(wave, tempHue[0]-tempHue[1])+tempHue[1];
+    showRGB(TEMP_LED, CHSV(hue, 255, 255));
+  }
+  if (!transmit) {
+    showRGB(IND_LED, heat ? CHSV(scale8(wave, 40)+10, 255, 255) : CHSV(96, 255, scale8(wave, 100)+40));
   }
 }
 
@@ -180,23 +210,18 @@ void clearRGB() {
 }
 
 uint8_t temperatureToHue(int temperature) {
-  return constrain(map(temperature, 15, 28, 160, 0), 0, 160);
-}
-
-void showTemp(const int n) {
-  showRGB(n, temp[n] > 0 ? (CRGB) CHSV(temperatureToHue(temp[n]), 255, heat ? 255 : 80) : CRGB::Black);
+  return map(constrain(temperature, TEMP_MIN, TEMP_MAX), TEMP_MIN, TEMP_MAX, TEMP_MIN_HUE, TEMP_MAX_HUE);
 }
 
 void setTemp(const int n, const int t) {
-  temp[n] = t;
+  tempHue[n] = temperatureToHue(t);
   if (DEBUG) {
     Serial.print("Set temperature ");
     Serial.print(n);
     Serial.print(" to ");
-    Serial.print(temp[n]);
+    Serial.print(t);
     Serial.println(" deg.C");
   }
-  showTemp(n);
 }
 
 void usb() {
@@ -256,7 +281,7 @@ void startTx(bool reset) {
   transmit = true;
   edgeIndex = 0;
   len = heat ? sizeof(on) : sizeof(off);
-  showRGB(heat ? HI : LO, heat ? CRGB::Pink : CRGB(1,1,2));
+  showRGB(IND_LED, CRGB::White);
   started = micros();
   setNextEdge();
 }
@@ -275,8 +300,6 @@ void writeEdge() {
       reTransmitPeriod = test_mode ? TEST_GAP : REGULAR_GAP;
     }
     digitalWrite(heatLED, heat ? HIGH : LOW);
-    showTemp(LO);
-    showTemp(HI);
     lastTransmit = micros();
   }
 }
