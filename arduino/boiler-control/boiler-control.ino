@@ -180,7 +180,7 @@ void updateTempPulse() {
   tempPulseNextInc = micros() + TEMP_PULSE_GAP;
   const uint8_t wave = cubicwave8(tempPulse);
   if (tempHue[0] == 0 || tempHue[1] == 0) {
-    showRGB(TEMP_LED, CRGB::Pink);
+    showRGB(TEMP_LED, CRGB::Purple);
   } else {
     const uint8_t hue = scale8(wave, tempHue[0]-tempHue[1])+tempHue[1];
     showRGB(TEMP_LED, CHSV(hue, 255, 255));
