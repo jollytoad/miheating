@@ -42,19 +42,19 @@ const subdevice = ({graphs, currentTemperatures, targetTemperatures, pendingTemp
         <td class="name">{label}</td>
         <td class="current">{currentTemperatures[id]}</td>
         <td class="target">{pendingTemperatures[id] || targetTemperatures[id]}</td>
-        <td class="control">{temperatureControl(id, pendingTemperatures[id] || targetTemperatures[id])}</td>
+        <td class="control">{temperatureControl(id, currentTemperatures[id], pendingTemperatures[id] || targetTemperatures[id])}</td>
       </tr>
       {graph(id, graphs)}
     </tbody>
 
-const temperatureControl = (id, targetTemperature) =>
+const temperatureControl = (id, currentTemperature, targetTemperature) =>
     <div class="btn-group">
       <button type="button" class="btn btn-default" aria-label="Decrease target temperature" data-id={id}
               data-set-target-temperature={targetTemperature-1}>
         <span class="glyphicon glyphicon-minus" aria-hidden="true"></span>
       </button>
       <button type="button" class="btn btn-default" aria-label="Increase target temperature" data-id={id}
-              data-set-target-temperature={targetTemperature+1}>
+              data-set-target-temperature={Math.max(currentTemperature,targetTemperature)+1}>
         <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
       </button>
     </div>
