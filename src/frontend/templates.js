@@ -36,13 +36,13 @@ const main = ({subdevices, temperatures}, model) =>
       </div>
     </div>
 
-const subdevice = ({graphs, currentTemperatures, targetTemperatures}, temperatures) => ({id, label}) =>
+const subdevice = ({graphs, currentTemperatures, targetTemperatures, pendingTemperatures}, temperatures) => ({id, label}) =>
     <tbody>
-      <tr class={`subdevice ${targetTemperatures[id] > currentTemperatures[id] ? 'danger' : 'success'}`} data-id={id}>
+      <tr class={`subdevice ${pendingTemperatures[id] ? 'warning' : (targetTemperatures[id] > currentTemperatures[id] ? 'danger' : 'success')}`} data-id={id}>
         <td class="name">{label}</td>
         <td class="current">{currentTemperatures[id]}</td>
-        <td class="target">{targetTemperatures[id]}</td>
-        <td class="control">{temperatureControl(id, targetTemperatures[id])}</td>
+        <td class="target">{pendingTemperatures[id] || targetTemperatures[id]}</td>
+        <td class="control">{temperatureControl(id, pendingTemperatures[id] || targetTemperatures[id])}</td>
       </tr>
       {graph(id, graphs)}
     </tbody>

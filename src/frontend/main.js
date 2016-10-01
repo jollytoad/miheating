@@ -17,6 +17,8 @@ import "vis/dist/vis.css!"
 
 // TODO: Store and fetch data from IndexedDB
 
+const trvIds = Object.keys(mihomeTrvs)
+
 // # Setup
 
 export function setup() {
@@ -40,7 +42,9 @@ export function setup() {
     },{
       receivedCurrentTemperature,
       receivedTargetTemperature
-    },{
+    },
+        mapOf(trvIds, clearPendingTemperature, id => 'clearPendingTemperature_' + id)
+     ,{
       renderRoot
     },{
       generateViewDiff
@@ -88,7 +92,8 @@ const initialState = {
   model: {
     graphs: false,
     currentTemperatures: {},
-    targetTemperatures: {}
+    targetTemperatures: {},
+    pendingTemperatures: {}
   },
   trans: { // transient state
     subdeviceIndex: {}
@@ -124,11 +129,14 @@ const setRaw = (property, data, now) => chain(
     update("error", null)
 )
 
-const fetchFailed = (reason) => update("error", reason.message)
+const fetchFailed = (reason) => {
+  console.error(reason)
+  return update("error", reason.message)
+}
 
 const rangeChange = (id, start, end) => update("view.range", {id, start, end})
 
-const setTargetTemperature = (id, temperature) => update(["model", "targetTemperatures", ""+id], temperature)
+const setTargetTemperature = (id, temperature) => update(["model", "pendingTemperatures", ""+id], temperature)
 
 const toggleGraphs = () => update("model.graphs", graphs => !graphs)
 
@@ -150,6 +158,7 @@ const rangeChanged = (state, prev) => state.view.range !== prev.view.range
 //const graphDataChanged = (state, prev) => state.trans.graphData !== prev.trans.graphData
 const modelChanged = (state, prev) => state.model !== prev.model
 const targetTemperaturesChanged = (state, prev) => state.model.targetTemperatures !== prev.model.targetTemperatures
+const pendingTemperaturesChanged = (state, prev) => state.model.pendingTemperatures !== prev.model.pendingTemperatures
 //const transChanged = (state, prev) => state.trans !== prev.trans
 const vdomChanged = (state, prev) => state.view.vdom !== prev.view.vdom
 const diffReady = (state, prev) => state.view.diff !== null && state.view.diff !== prev.view.diff
@@ -158,6 +167,8 @@ const hasLoaded = (state, prev) => state.error === null && state.loaded !== prev
 const pollingChanged = (state, prev) => state.req.suspend !== prev.req.suspend || state.req.interval !== prev.req.interval
 
 const sourceIs = source => state => state.req.source === source
+
+const pendingTemperatureConfirmed = id => state => state.model.targetTemperatures[id] === state.model.pendingTemperatures[id]
 
 // ## Calculations
 
@@ -173,18 +184,23 @@ const indexSubdevices = {
 
 const extractRawData = (rawProp, modelProp) => ({
   when: subDevicesChanged,
-  then: update(["model", modelProp], (data, state) => state.raw.subdevices.reduce((memo, subdevice) => {
-        if (subdevice[rawProp] != null) {
+  then: (state, prev) => update(["model", modelProp], (data, state) => state.raw.subdevices.reduce((memo, subdevice, idx) => {
+        if (subdevice[rawProp] != null && (prev.raw.subdevices[idx] ? subdevice.updated_at > prev.raw.subdevices[idx].updated_at : true)) {
           memo[subdevice.id] = subdevice[rawProp]
         } else if (data[subdevice.id] != null) {
           memo[subdevice.id] = data[subdevice.id]
         }
         return memo
-      }, {}))
+      }, {}))(state)
 })
 
 const receivedCurrentTemperature = extractRawData("last_temperature", "currentTemperatures")
 const receivedTargetTemperature = extractRawData("target_temperature", "targetTemperatures")
+
+const clearPendingTemperature = (id) => ({
+  when: allOf(targetTemperaturesChanged, pendingTemperatureConfirmed(id)),
+  then: update(["model", "pendingTemperatures", ""+id], null)
+})
 
 const renderRoot = {
   when: anyOf(modelChanged, subDevicesChanged, temperaturesChanged, hasError, pollingChanged),
@@ -264,12 +280,12 @@ const loadHistory = {
 }
 
 const submitTargetTemperatures = {
-  when: targetTemperaturesChanged,
+  when: pendingTemperaturesChanged,
   then: (state, prev, dispatch) => {
-    $.each(state.model.targetTemperatures, (id, temperature) => {
-      const prevTemperature = prev.model.targetTemperatures[id];
+    $.each(state.model.pendingTemperatures, (id, temperature) => {
+      const prevTemperature = prev.model.pendingTemperatures[id];
 
-      if (prevTemperature != undefined && temperature !== prevTemperature) {
+      if (temperature != undefined && temperature !== prevTemperature) {
         fetchData(dispatch, ['subdevices', state.trans.subdeviceIndex[id]], 'subdevices/set_target_temperature', { id: +id, temperature })
       }
     })
@@ -440,3 +456,8 @@ const fetchHistory = (dispatch, start) =>
             .then(response => response.json())
             .then(data => dispatch.setRaw(['history',start], data, Date.now()))
             .catch(dispatch.fetchFailed)
+
+const mapOf = (keys, valFn, keyFn) => keys.reduce((obj, key) => {
+  obj[keyFn ? keyFn(key) : key] = valFn(key)
+  return obj
+}, {})
