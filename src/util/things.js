@@ -1,6 +1,6 @@
 
 export const mihomeTrvs = {
-  11205: "family",
+  27432: "family",
   11210: "kitchenFront",
   11209: "kitchenBack",
   11207: "office",
