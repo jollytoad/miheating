@@ -23,6 +23,19 @@ export function bindReady({ suspend, resume }) {
   })
 }
 
+export function bindActions(dispatch) {
+  $(document)
+      .on("click", "[data-action]", e => {
+        e.preventDefault()
+        const data = Object.assign(Object.create(null), e.currentTarget.dataset)
+        if (dispatch[data.action]) {
+          dispatch[data.action](data)
+        } else {
+          console.error(`Action '${data.action}' is not defined`, e.currentTarget, data)
+        }
+      })
+}
+
 export function bindButtons({ setTargetTemperature, toggleGraphs, refresh }) {
   $(document)
       .on("click", "[data-set-target-temperature]", e => {
@@ -37,6 +50,26 @@ export function bindButtons({ setTargetTemperature, toggleGraphs, refresh }) {
         e.preventDefault()
         refresh({ now: Date.now() })
       })
+}
+
+export function bindTimers({ selectTimer, setTimerData }) {
+  $(document)
+      .on("click", ".timer", e => {
+        console.log(e)
+        let timerId = getTimerId($(e.target).attr('class'))
+        if (timerId.length) {
+          console.log("Clicked Timer", timerId)
+          selectTimer(...timerId);
+        }
+      })
+      .on("click", "[data-set-timer]", e => {
+          e.preventDefault()
+          setTimerData(e.currentTarget.dataset.setTimer, +e.currentTarget.dataset.value)
+      })
+}
+
+function getTimerId(className) {
+  return (/timer-(\d+)-(\d+)/.exec(className) || []).slice(1)
 }
 
 function getSource(url) {

@@ -7,7 +7,7 @@ import patch from 'virtual-dom/patch'
 import { root, initRoot } from './templates'
 import { render, whenNotRendering } from './render-utils'
 import { map, mapIf, mapFrom } from '../util/map2'
-import { bindReady, bindButtons } from './bindings'
+import { bindReady, bindActions, bindButtons, bindTimers } from './bindings'
 import { mihomeTrvs } from '../util/things'
 import { periodDuration, topOfPeriod } from '../util/history'
 import { anyOf, allOf, not } from '../util/predicates'
@@ -33,12 +33,17 @@ export function setup() {
       fetchFailed,
       rangeChange,
       setTargetTemperature,
-      toggleGraphs
+      toggleGraphs,
+      selectTimer,
+      unselectTimer,
+      saveTimer,
+      setTimerData
     })
     .calculations({
       indexSubdevices,
       retryOnError,
-      pollAfterLoading
+      pollAfterLoading,
+      lookupTimerData
     },{
       receivedCurrentTemperature,
       receivedTargetTemperature
@@ -55,7 +60,8 @@ export function setup() {
       loadTemperatureReports,
       loadHistory
     },{
-      submitTargetTemperatures
+      submitTargetTemperatures,
+      submitTimer
     },{
       polling
     },{
@@ -66,7 +72,9 @@ export function setup() {
     })
     .init(
       bindReady,
-      bindButtons
+      bindActions,
+      bindButtons,
+      bindTimers
     )
 }
 
@@ -93,7 +101,13 @@ const initialState = {
     graphs: false,
     currentTemperatures: {},
     targetTemperatures: {},
-    pendingTemperatures: {}
+    pendingTemperatures: {},
+    selectedTimer: {
+      subdeviceId: null,
+      timerId: null,
+      data: null
+    },
+    savedTimer: null
   },
   trans: { // transient state
     subdeviceIndex: {}
@@ -143,6 +157,24 @@ const toggleGraphs = () => update("model.graphs", graphs => !graphs)
 const suspend = () => update("req.suspend", true)
 const resume = refresh.then
 
+const selectTimer = (subdeviceId, timerId) => chain(
+  update("model.selectedTimer.subdeviceId", +subdeviceId),
+  update("model.selectedTimer.timerId", +timerId)
+)
+
+const unselectTimer = () => chain(
+  update("model.selectedTimer.subdeviceId", null),
+  update("model.selectedTimer.timerId", null),
+  update("model.selectedTimer.data", null)
+)
+
+const saveTimer = () => chain(
+  update("model.savedTimer", (x, state) => state.model.selectedTimer),
+  unselectTimer()
+)
+
+const setTimerData = (property, value) => update(["model", "selectedTimer", "data"].concat(property), value)
+
 // ## Predicates
 // For use in _when_ clauses of calculations and side-effects
 // (state, prev) -> boolean
@@ -169,6 +201,9 @@ const pollingChanged = (state, prev) => state.req.suspend !== prev.req.suspend |
 const sourceIs = source => state => state.req.source === source
 
 const pendingTemperatureConfirmed = id => state => state.model.targetTemperatures[id] === state.model.pendingTemperatures[id]
+
+const timerSelected = (state, prev) => state.model.selectedTimer.subdeviceId && state.model.selectedTimer.timerId && state.model.selectedTimer.timerId !== prev.model.selectedTimer.timerId
+const timerSaved = (state, prev) => state.model.savedTimer && state.model.savedTimer !== prev.model.savedTimer
 
 // ## Calculations
 
@@ -220,6 +255,22 @@ const retryOnError = {
 const pollAfterLoading = {
   when: hasLoaded,
   then: update("req.interval", uiRefresh)
+}
+
+const lookupTimerData = {
+  when: timerSelected,
+  then: update("model.selectedTimer.data", (x, {raw:{timers},model:{selectedTimer}}) => createTimerData(timers[selectedTimer.subdeviceId].find(data => data.id === selectedTimer.timerId)))
+}
+
+const createTimerData = ({value, days_active, run_at}) => ({
+  temperature: +value,
+  time: parseRunAtTime(run_at),
+  days: +days_active
+})
+
+const parseRunAtTime = time => {
+  const [,hh,mm] = time.match(/T(\d\d):(\d\d)/)
+  return +mm + hh*60
 }
 
 // ## Request Side Effects
@@ -292,6 +343,28 @@ const submitTargetTemperatures = {
   }
 }
 
+const submitTimer = {
+  when: timerSaved,
+  then: (state, prev, dispatch) => {
+    const { subdeviceId, timerId, data } = state.model.savedTimer
+
+    fetchData(dispatch, ['timers', ''+subdeviceId, findTimerIndex(state.raw.timers[subdeviceId], timerId)], 'timers/update', {
+      subdevice_id: subdeviceId,
+      id: timerId,
+      action: 'set_target_temperature',
+      value: ''+data.temperature,
+      run_at: formatTime(data.time),
+      days_active: data.days
+    })
+  }
+}
+
+const findTimerIndex = (timers, id) => timers.findIndex(timer => timer.id === id)
+
+const formatTime = time => pad2(Math.floor(time/60)) + ':' + pad2(time % 60)
+
+const pad2 = n => ('0' + n).slice(-2)
+
 let pollingHandle = null
 
 const polling = {
@@ -318,13 +391,29 @@ const patchDOM = {
   })
 }
 
-const createTimerSeries = (timerData, range) =>
+const createTimerSeries = (timerData, date) =>
     timerData
-        .map(({action, last_run_at, value}) =>
-            action === "set_target_temperature" && last_run_at && Date.parse(last_run_at) >= range.start && value
-              ? { x: last_run_at, y: +value, group: 2 }
+        .map(({action, run_at, days_active, value, subdevice_id, id}) =>
+            action === "set_target_temperature" && run_at && value
+              ? createTimerPoint(subdevice_id, id, value, run_at, days_active, date)
               : null)
         .filter(x => x !== null)
+
+const createTimerPoint = (subdeviceId, timerId, value, run_at, days, date) => {
+  const time = calcTimer(date, parseRunAtTime(run_at))
+  const day = new Date(time).getDay()
+  const dayBit = Math.pow(2, (day === 0 ? 6 : day-1))
+  return {
+    x: time,
+    y: +value,
+    group: 2,
+    subdeviceId,
+    timerId,
+    today: !!(days & dayBit)
+  }
+}
+
+const calcTimer = (timestamp, minutes) => new Date(timestamp).setHours(0, minutes, 0, 0)
 
 const createHistorySeries = (name, history, range) =>
   [].concat(...Object.values(history))
@@ -340,14 +429,9 @@ const renderGraph = (id, temperatureData, timerData, history, range, dispatch) =
 
   const container = document.getElementById(`chart-${id}`)
 
-  console.log(id, container)
-
   if (!container) {
     return
   }
-
-  // HACK: colspan doesn't seem to get rendered in the DOM
-  container.colSpan = 4
 
   let temperatureSeries
 
@@ -356,7 +440,7 @@ const renderGraph = (id, temperatureData, timerData, history, range, dispatch) =
   } else {
     temperatureSeries = history && mihomeTrvs[id] && createHistorySeries(mihomeTrvs[id], history, range)
   }
-  const timerSeries = timerData && createTimerSeries(timerData, range)
+  const timerSeries = timerData && createTimerSeries(timerData, range.start).concat(createTimerSeries(timerData, range.end))
   const boilerSeries = history && createBoilerSeries(history, range)
 
   const dataset = new vis.DataSet()
@@ -394,15 +478,17 @@ const renderGraph = (id, temperatureData, timerData, history, range, dispatch) =
         sort: false,
         sampling: false,
         style: 'points',
-        drawPoints: {
-          style: 'circle'
-        }
+        drawPoints: item => ({
+          style: 'circle',
+          size: 10,
+          className: `timer timer-${item.subdeviceId}-${item.timerId} ${item.today ? 'today' : ''}`
+        })
       }
     })
 
     const options = {
-      //start: "2016-02-10",
-      //end: "2016-02-12",
+      start: range.start,
+      end: range.end,
       height: "200px",
       width: "100%",
       dataAxis: {
