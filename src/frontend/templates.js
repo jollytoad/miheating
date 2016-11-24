@@ -14,9 +14,9 @@ export const root = ({ raw, model, loaded, error, req: { suspend } }) =>
       <nav class="navbar navbar-inverse navbar-fixed-top">
         <div class="container">
           <div class="navbar-left">
-            <a class="navbar-brand refresh" href="#">{suspend ? "Offline" : (error ? error : timeFormat.format(loaded))}</a>
+            <a class="navbar-brand" href="#" data-action="refresh">{suspend ? "Offline" : (error ? error : timeFormat.format(loaded))}</a>
           </div>
-          <button type="button" class="toggle-graphs btn btn-default navbar-btn navbar-right pull-right">
+          <button type="button" class={`btn btn-default navbar-btn navbar-right pull-right ${model.graphs ? 'active' : ''}`} data-action="toggleGraphs">
             <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
           </button>
         </div>
@@ -51,15 +51,14 @@ const subdevice = ({graphs, currentTemperatures, targetTemperatures, pendingTemp
 
 const temperatureControl = (id, currentTemperature, targetTemperature) =>
     <div class="btn-group">
-      <button type="button" class="btn btn-default" aria-label="Decrease target temperature" data-id={id}
-              data-set-target-temperature={targetTemperature-1}>
-        <span class="glyphicon glyphicon-minus" aria-hidden="true"></span>
-      </button>
-      <button type="button" class="btn btn-default" aria-label="Increase target temperature" data-id={id}
-              data-set-target-temperature={Math.max(currentTemperature,targetTemperature)+1}>
-        <span class="glyphicon glyphicon-plus" aria-hidden="true"></span>
-      </button>
+      {targetTempBtn('minus', id, targetTemperature-1)}
+      {targetTempBtn('plus', id, Math.max(currentTemperature,targetTemperature)+1)}
     </div>
+
+const targetTempBtn = (icon, id, temperature) =>
+    <button type="button" class="btn btn-default" data-action="setTargetTemperature" data-id={id} data-value={temperature}>
+      <span class={`glyphicon glyphicon-${icon}`} aria-hidden="true"></span>
+    </button>
 
 const graph = (id, graphs) =>
     graphs ? <tr><td colSpan="4" class="chart fill" id={`chart-${id}`}/></tr> : null

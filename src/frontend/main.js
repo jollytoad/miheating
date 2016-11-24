@@ -7,7 +7,7 @@ import patch from 'virtual-dom/patch'
 import { root, initRoot } from './templates'
 import { render, whenNotRendering } from './render-utils'
 import { map, mapIf, mapFrom } from '../util/map2'
-import { bindReady, bindActions, bindButtons, bindTimers } from './bindings'
+import { bindReady, bindActions, bindTimers } from './bindings'
 import { mihomeTrvs } from '../util/things'
 import { periodDuration, topOfPeriod } from '../util/history'
 import { anyOf, allOf, not } from '../util/predicates'
@@ -73,7 +73,6 @@ export function setup() {
     .init(
       bindReady,
       bindActions,
-      bindButtons,
       bindTimers
     )
 }
@@ -150,7 +149,7 @@ const fetchFailed = (reason) => {
 
 const rangeChange = (id, start, end) => update("view.range", {id, start, end})
 
-const setTargetTemperature = (id, temperature) => update(["model", "pendingTemperatures", ""+id], temperature)
+const setTargetTemperature = ({ id, value }) => update(["model", "pendingTemperatures", ""+id], +value)
 
 const toggleGraphs = () => update("model.graphs", graphs => !graphs)
 

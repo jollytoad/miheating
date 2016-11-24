@@ -26,7 +26,7 @@ export function bindReady({ suspend, resume }) {
 export function bindActions(dispatch) {
 
   const dispatchAction = (target, extraDataSupplier) => {
-    let data = Object.assign(Object.create(null), target.dataset)
+    let data = Object.assign({ now: Date.now() }, target.dataset)
     if (extraDataSupplier) {
       data = Object.assign(data, extraDataSupplier(target))
     }
@@ -44,22 +44,6 @@ export function bindActions(dispatch) {
       })
       .on("input", "input[data-action]", e => {
         dispatchAction(e.currentTarget, ({value}) => ({value}))
-      })
-}
-
-export function bindButtons({ setTargetTemperature, toggleGraphs, refresh }) {
-  $(document)
-      .on("click", "[data-set-target-temperature]", e => {
-        e.preventDefault()
-        setTargetTemperature(e.currentTarget.dataset.id, +e.currentTarget.dataset.setTargetTemperature)
-      })
-      .on("click", ".toggle-graphs", e => {
-        e.preventDefault()
-        toggleGraphs()
-      })
-      .on("click", ".refresh", e => {
-        e.preventDefault()
-        refresh({ now: Date.now() })
       })
 }
 
