@@ -36,7 +36,9 @@ export function setup() {
       toggleGraphs,
       selectTimer,
       unselectTimer,
+      newTimer,
       saveTimer,
+      deleteTimer,
       setTimerData
     })
     .calculations({
@@ -167,8 +169,24 @@ const unselectTimer = () => chain(
   update("model.selectedTimer.data", null)
 )
 
+const newTimer = ({ subdeviceId, now, temperature, days }) => chain(
+    update("model.selectedTimer.subdeviceId", +subdeviceId),
+    update("model.selectedTimer.timerId", null),
+    update("model.selectedTimer.data", {
+      time: parseRunAtTime(new Date(now).toISOString()),
+      temperature: +temperature,
+      days: Math.pow(2, (new Date(now).getDay() + 6) % 7)
+    })
+)
+
 const saveTimer = () => chain(
   update("model.savedTimer", (x, state) => state.model.selectedTimer),
+  unselectTimer()
+)
+
+const deleteTimer = () => chain(
+  update("model.savedTimer", (x, state) => state.model.selectedTimer),
+  update("model.savedTimer.data", false),
   unselectTimer()
 )
 
@@ -294,7 +312,7 @@ const loadSubDevices = {
 }
 
 const loadTimers = {
-  when: anyOf(graphsJustEnabled, allOf(graphsEnabled, subDevicesChanged)),
+  when: subDevicesChanged,
   then: (state, p, dispatch) => {
     state.raw.subdevices.forEach(({id, device_type}) => {
       if (device_type === "etrv") {
@@ -358,19 +376,19 @@ const submitTimer = {
   when: timerSaved,
   then: (state, prev, dispatch) => {
     const { subdeviceId, timerId, data } = state.model.savedTimer
+    const api = timerId ? (data === false ? 'timers/delete' : 'timers/update') : 'timers/create'
 
-    fetchData(dispatch, ['timers', ''+subdeviceId, findTimerIndex(state.raw.timers[subdeviceId], timerId)], 'timers/update', {
+    fetchData(dispatch, null, api, {
       subdevice_id: subdeviceId,
       id: timerId,
-      action: 'set_target_temperature',
-      value: ''+data.temperature,
-      run_at: formatTime(data.time),
-      days_active: data.days
+      action: data ? 'set_target_temperature' : undefined,
+      value: data ? '' + data.temperature : undefined,
+      run_at: data ? formatTime(data.time) : undefined,
+      days_active: data ? data.days : undefined
     })
+        .then(() => fetchData(dispatch, ['timers', ''+subdeviceId], 'timers/list', { subdevice_id: subdeviceId }))
   }
 }
-
-const findTimerIndex = (timers, id) => timers.findIndex(timer => timer.id === id)
 
 const formatTime = time => pad2(Math.floor(time/60)) + ':' + pad2(time % 60)
 
@@ -545,7 +563,7 @@ const arrEq = (path1, path2) => path1 != null && path2 != null &&
 const fetchData = (dispatch, target, api, params) =>
     fetch(`api/v1/${api}` + (params ? "?params=" + encodeURIComponent(JSON.stringify(params)) : ''))
         .then(response => response.json())
-        .then(content => dispatch.setRaw(target, content.data, Date.now()))
+        .then(content => target && dispatch.setRaw(target, content.data, Date.now()))
         .catch(dispatch.fetchFailed)
 
 const fetchHistory = (dispatch, start) =>

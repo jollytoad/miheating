@@ -22,7 +22,7 @@ export const root = ({ raw, model, loaded, error, req: { suspend } }) =>
         </div>
       </nav>
 
-      {model.selectedTimer.data ? timer(model.selectedTimer.data) : ''}
+      {model.selectedTimer.data ? timer(model.selectedTimer) : ''}
 
       <div class="container-fluid main" role="main">
         {main(raw, model)}
@@ -43,11 +43,16 @@ const subdevice = ({graphs, currentTemperatures, targetTemperatures, pendingTemp
       <tr class={`subdevice ${pendingTemperatures[id] ? 'warning' : (targetTemperatures[id] > currentTemperatures[id] ? 'danger' : 'success')}`} data-id={id}>
         <td class="name">{label}</td>
         <td class="current">{currentTemperatures[id]}</td>
-        <td class="target">{pendingTemperatures[id] || targetTemperatures[id]}</td>
+        <td class="target">{targetTemperature(id, pendingTemperatures[id] || targetTemperatures[id])}</td>
         <td class="control">{temperatureControl(id, currentTemperatures[id], pendingTemperatures[id] || targetTemperatures[id])}</td>
       </tr>
       {graph(id, graphs)}
     </tbody>
+
+const targetTemperature = (id, temperature) =>
+    <span data-action="newTimer" data-subdevice-id={id} data-temperature={temperature}>
+      {temperature}
+    </span>
 
 const temperatureControl = (id, currentTemperature, targetTemperature) =>
     <div class="btn-group">
@@ -63,10 +68,14 @@ const targetTempBtn = (icon, id, temperature) =>
 const graph = (id, graphs) =>
     graphs ? <tr><td colSpan="4" class="chart fill" id={`chart-${id}`}/></tr> : null
 
-const timer = ({temperature, time, days}) =>
+const timer = ({timerId, data: {temperature, time, days}}) =>
     <div id="timer-modal" class="timer-dialog modal" tabindex="-1" role="dialog">
       <div class="modal-dialog modal-sm" role="document">
         <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-action="unselectTimer" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            <h4 class="modal-title">{timerId ? 'Change timer' : 'Add timer'}</h4>
+          </div>
           <div class="modal-body">
 
             <div class="row">
@@ -125,7 +134,11 @@ const timer = ({temperature, time, days}) =>
           <div class="modal-footer">
             <div class="row">
               <div class="col-xs-6 text-center">
-                <button type="button" class="btn btn-default" data-action="unselectTimer">Close</button>
+                {timerId ?
+                  <button type="button" class="btn btn-default btn-danger" data-action="deleteTimer">Delete</button>
+                    :
+                  <span/>
+                }
               </div>
               <div class="col-xs-6 text-center">
                 <button type="button" class="btn btn-primary" data-action="saveTimer">Save</button>

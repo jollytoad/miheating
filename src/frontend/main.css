@@ -35,6 +35,10 @@ body {
   font-size: 20px;
 }
 
+.target [data-action] {
+  cursor: pointer;
+}
+
 .modal {
   top: 50px;
 }
