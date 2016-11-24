@@ -103,7 +103,7 @@ const timer = ({temperature, time, days}) =>
             <div class="row">
               <div class="col-xs-10 col-xs-offset-1 text-center">
                 <div class="form-group">
-                  <input type="time" class="form-control timer-time" value={formatTime(time)}/>
+                  <input type="time" class="form-control timer-time" data-action="setTimerData" data-prop="time" value={formatTime(time)}/>
                 </div>
                 <div class="form-group btn-group btn-group-sm" role="group">
                   {dayBtn('M', 1, days)}
@@ -138,21 +138,21 @@ const timer = ({temperature, time, days}) =>
     </div>
 
 const temperatureBtn = (icon, offset, temperature) =>
-    <button type="button" class="btn btn-default" data-set-timer="temperature" data-value={temperature + offset}>
+    <button type="button" class="btn btn-default" data-action="setTimerData" data-prop="temperature" data-value={temperature + offset}>
       <span class={`glyphicon glyphicon-${icon}`} aria-hidden="true"></span>
     </button>
 
 const timeBtn = (icon, offset, time) =>
-    <button type="button" class="btn btn-default" data-set-timer="time" data-value={calcTime(time, offset)}>
+    <button type="button" class="btn btn-default" data-action="setTimerData" data-prop="time" data-value={calcTime(time, offset)}>
       <span class={`glyphicon glyphicon-${icon}`} aria-hidden="true"></span>
     </button>
 
 const dayBtn = (char, bit, days) =>
     <button type="button" class={`btn btn-default ${bit & days ? 'btn-success active' : ''}`} data-day={bit}
-            data-set-timer="days" data-value={days ^ bit}>{char}</button>
+            data-action="setTimerData" data-prop="days" data-value={days ^ bit}>{char}</button>
 
 const rangeBtn = (label, value) =>
-    <button type="button" class="btn btn-default" data-set-timer="days" data-value={value}>{label}</button>
+    <button type="button" class="btn btn-default" data-action="setTimerData" data-prop="days" data-value={value}>{label}</button>
 
 const calcTime = (time, offset) => (2880 + (time + offset)) % 1440
 

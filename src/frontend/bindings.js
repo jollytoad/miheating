@@ -24,15 +24,26 @@ export function bindReady({ suspend, resume }) {
 }
 
 export function bindActions(dispatch) {
+
+  const dispatchAction = (target, extraDataSupplier) => {
+    let data = Object.assign(Object.create(null), target.dataset)
+    if (extraDataSupplier) {
+      data = Object.assign(data, extraDataSupplier(target))
+    }
+    if (dispatch[data.action]) {
+      dispatch[data.action](data)
+    } else {
+      console.error(`Action '${data.action}' is not defined`, target, data)
+    }
+  }
+
   $(document)
-      .on("click", "[data-action]", e => {
+      .on("click", ":not(input)[data-action]", e => {
         e.preventDefault()
-        const data = Object.assign(Object.create(null), e.currentTarget.dataset)
-        if (dispatch[data.action]) {
-          dispatch[data.action](data)
-        } else {
-          console.error(`Action '${data.action}' is not defined`, e.currentTarget, data)
-        }
+        dispatchAction(e.currentTarget)
+      })
+      .on("input", "input[data-action]", e => {
+        dispatchAction(e.currentTarget, ({value}) => ({value}))
       })
 }
 
@@ -52,19 +63,13 @@ export function bindButtons({ setTargetTemperature, toggleGraphs, refresh }) {
       })
 }
 
-export function bindTimers({ selectTimer, setTimerData }) {
+export function bindTimers({ selectTimer }) {
   $(document)
       .on("click", ".timer", e => {
-        console.log(e)
         let timerId = getTimerId($(e.target).attr('class'))
         if (timerId.length) {
-          console.log("Clicked Timer", timerId)
           selectTimer(...timerId);
         }
-      })
-      .on("click", "[data-set-timer]", e => {
-          e.preventDefault()
-          setTimerData(e.currentTarget.dataset.setTimer, +e.currentTarget.dataset.value)
       })
 }
 

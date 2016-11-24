@@ -173,7 +173,19 @@ const saveTimer = () => chain(
   unselectTimer()
 )
 
-const setTimerData = (property, value) => update(["model", "selectedTimer", "data"].concat(property), value)
+const setTimerData = ({ prop, value }) =>
+    update(["model", "selectedTimer", "data", prop], parseTimerValue(value))
+
+function parseTimerValue(value) {
+  if (typeof value === 'string') {
+    if (value.indexOf(':') >= 0) {
+      return parseRunAtTime('T' + value)
+    } else {
+      return +value
+    }
+  }
+  return value
+}
 
 // ## Predicates
 // For use in _when_ clauses of calculations and side-effects
